@@ -109,3 +109,11 @@ Mở `backend/RecipeHub.Api/RecipeHub.Api.http`, chạy RecipeHub.Api bằng pro
 Các khối cần đăng nhập yêu cầu access token hợp lệ. Giữ giá trị thật trong bản sao `.http` ở ngoài repository hoặc cấu hình biến riêng của HTTP client. File trong Git chỉ chứa placeholders. Không gửi token thật vào commit hoặc ảnh chụp. Dùng tài khoản Admin thật cho hai khối quản trị.
 
 Danh sách ingredientIds được truyền bằng tham số lặp lại như `?ingredientIds=id1&ingredientIds=id2`. Trạng thái Draft dùng để thử tạo món cá nhân. API review/gợi ý công khai cần món Published. Mỗi khối là một yêu cầu độc lập và người dùng chủ động chọn gửi, nên khối POST tạo món chỉ gửi khi muốn tạo thêm dữ liệu.
+
+## Swagger UI trong Development
+
+Chạy RecipeHub.Api với profile http, mở http://localhost:5194/swagger. Swagger dùng OpenAPI tại /openapi/v1.json. Có thể Try it out rồi Execute các API đọc. Swagger tự lấy CSRF token cùng origin trước các POST /api/v1/auth/*, dùng cookie trình duyệt hiện tại.
+
+Để gọi API có quyền: mở POST /api/v1/auth/login, nhập tài khoản development, Execute. Copy accessToken từ response vào Authorize, chỉ nhập token. Token giữ ở trang hiện tại, không bật lưu qua lần tải lại. Dùng tài khoản Admin để thử route admin. Các thao tác tạo/sửa tác động database đang cấu hình, nên dùng dữ liệu thử có thể nhận diện. Swagger UI chỉ được đăng ký trong Development.
+
+Kiểm thử tự động đã xác minh Development200/Production404, mô tả Bearer của route bảo vệ và cấu hình CSRF trong Swagger script. Chưa kiểm chứng thao tác đăng nhập bằng trình duyệt thực tế sau thay đổi.

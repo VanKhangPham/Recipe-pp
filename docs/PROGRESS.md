@@ -270,3 +270,104 @@ Trạng thái: **Completed** cho milestone Authentication cơ bản có kiểm t
 - RecipeService detach đúng các child entities của công thức trước bulk delete và thay collection. Giữ transaction và row lock hiện có.
 - Sau bản sửa RecipeUpdateTests đạt2/2, gồm cập nhật lặp cùng context và12 HTTP PUT có đủ child collections,0 skipped.
 - Đây là nguyên nhân xác định cho trường hợp tracking đã tái hiện. Chưa có stack trace của500 HTTP gián đoạn cũ để chứng minh hai lỗi cùng nguyên nhân. Giữ diagnostics để tiếp tục xác minh nếu lỗi đó tái xuất hiện.
+
+## 2026-11-05 — Swagger UI cho thử API thủ công
+
+- Thêm Swashbuckle.AspNetCore.SwaggerUI10.3.1, Development /swagger, dùng OpenAPI sẵn có.
+- Mô tả Bearer JWT cho endpoint có Authorize, tự lấy CSRF trước auth POST cùng origin.
+- Bộ mặc định sau thay đổi đạt24 passed,0 failed,10 PostgreSQL tests skipped (opt-in), tổng34. Chưa chạy lại PostgreSQL hoặc browser login trong lượt này.
+- Thay đổi sau commit bàn giao, chưa commit/push.
+
+## 2026-11-05 — Kiểm thử đầy đủ phiên bản hiện tại
+
+- Chạy Release với RECIPEHUB_RUN_POSTGRES_TESTS=1:34 passed,0 failed,0 skipped,8m36s. Gồm Swagger/startup/auth, PostgreSQL workflows, cập nhật lặp và kiểm tra EF tracking cùng context.
+- Không tái hiện500 trong lượt này. Lỗi tracking tái hiện đã có bản sửa;500 HTTP gián đoạn cũ chưa có stack trace để đối chiếu nguyên nhân.
+- Thay đổi Swagger còn ở workspace, chưa commit/push. Docker chưa tìm thấy trong PATH/cài đặt mặc định trên Windows; đang cần xác minh vị trí Docker người dùng nói đã cài.
+- pg_dump/pg_restore có sẵn bản17; cần công cụ phù hợp server18 trước backup/restore.
+
+## 2026-11-06 — Build và smoke test Docker
+
+- Build recipehub-api:local thành công trên Docker Desktop Linux.
+- recipehub-api-local ở localhost8080: health/live200, health/ready200, system200, ingredients read200, Swagger404 (Production), uid1654.
+- Restart container xong health/live và health/ready tiếp tục200.
+- Chưa thử auth/HTTPS trên container hoặc Jenkins/AWS. Container local còn chạy. Secrets chỉ truyền runtime qua biến môi trường từ User Secrets, không in ra log.
+
+## 2026-11-06 — Kiểm chứng metadata dataset
+
+- Migration dataset đã thử trên schema PostgreSQL tạm:1 passed,0 failed,0 skipped, persistence/Pending/unique DatasetKey đạt.
+- SQL delta add-recipe-dataset-entries.sql có guard recipehub_dev và migration trước đó, search_path public trong transaction. Chưa áp dụng vào public.
+- Importer ghi database còn cần triển khai. Năm món mẫu vẫn ở trạng thái chờ duyệt.
+
+## 2026-11-06 — Importer nháp C#
+
+- DatasetImporter đọc JSON, kiểm tra fields, Draft/pending, key/title trùng và đơn vị/định lượng. Entry point Api --dataset mặc định dry-run, --apply --author cho database development/test.
+- Nhập transaction cả file, advisory lock, hash cùng dataset key để bỏ qua nhập lại hoặc báo xung đột nội dung. Nguyên liệu trim/Unicode/lowercase; alias từ đồng nghĩa còn cần registry. Công thức dataset Pending bị chặn publish qua RecipeService.
+- CLI dry-run với file5 món đạt. Hai lượt kiểm thử Neon dừng ở fixture do Npgsql timeout trước importer, chưa chứng minh lỗi do importer.
+- PostgreSQL18 tạm trong Docker: DatasetImportTests đạt1/1, kiểm chứng nhập lại, rollback xung đột cuối lô, Draft/Pending và chặn publish. Container test đã tự dọn.
+- Chưa nhập5 món vào public. Cần chọn UUID tác giả hiện có trước lệnh apply. Chưa chạy toàn bộ suite sau thay đổi importer.
+
+## 2026-11-06 — Khánh xác nhận nhập lô mẫu vào development
+
+- Ảnh DBeaver xác nhận migration dataset, bảng metadata ban đầu0 dòng.
+- Lệnh nhập do Khánh chạy:created=5,skipped=0; chạy lại:created=0,skipped=5.
+- SELECT join hiển thị5 món Draft/Pending. Ảnh đo sau nhập:10649600 byte toàn DB,6 recipes,11 ingredients,5 dataset entries.
+- DATA_QUALITY_REPORT.md lưu bằng chứng và các phần chưa kiểm chứng. Dung lượng toàn DB hai thời điểm chưa thể dùng để tính kích thước dataset riêng.
+
+## 2026-11-06 — Quy trình duyệt nguồn dataset
+
+- Thêm PATCH admin/dataset/{recipeId}/review, policy Admin, metadata validation, audit actor/time. Approved không tự publish. Pending/Rejected thu hồi Published về Draft.
+- Đưa kiểm tra trạng thái duyệt khi publish vào trong khóa recipe để đồng bộ với thu hồi duyệt.
+- DatasetImportTests trên PostgreSQL18 Docker đạt1/1, gồm thiếu thông tin approval bị chặn, approval giữ Draft, publish sau approval, reject đưa về Draft và2 audit records.
+- Chưa duyệt5 món thật, chưa thay đổi dữ liệu public. Chưa kiểm thử HTTP endpoint mới hoặc toàn suite trong lượt này.
+
+## 2026-11-06 — Kiểm thử đầy đủ sau importer và duyệt nguồn
+
+- Release với PostgreSQL18 Docker tạm:36 passed,0 failed,0 skipped,19s. Container kiểm thử đã tự dọn.
+- HTTP dataset review kiểm tra anonymous401,User403,source thiếu/URL HTTP400,recipe không tồn tại404,Admin approval200 và reject200.
+- Kiểm tra duyệt giữ Draft, publish sau Approved, thu hồi duyệt đưa về Draft, audit actor/time, nhập lặp và rollback cả lô khi conflict đều đạt.
+- Chưa approve5 món thật. Kết quả chức năng không thay thế kiểm chứng nguồn và nội dung bởi nhóm.
+- Mã nguồn hiện tại chưa commit/push sau các thay đổi Swagger/dataset. Docker image local được build trước các thay đổi importer/review nên cần build lại khi bàn giao bản mới.
+
+## 2026-11-06 — Docker bản cập nhật
+
+- Build image hiện tại thành công, ID4359cd51acf098a7e18c2056ce54b5abb7a8001ab54134fc807bc71cea5419eb.
+- Dry-run5 món bên trong image đạt. Smoke container Production tạm kết nối Neon:4 endpoint đọc/health đều200. Container test đã được dọn.
+- Container8080 cần được tạo lại để dùng image mới. Chưa xác minh auth/HTTPS/Jenkins/AWS. Các thay đổi hiện tại còn cần commit/push.
+
+## 2026-11-06 — Bản Docker local hiện tại
+
+- Tạo lại recipehub-api-local từ image mới4359cd51 ở8080.4 health/read endpoints200, restart readiness200.
+- Container cũ dừng được giữ làm backup, không xóa image/dữ liệu database. Tên backup cụ thể có trong kết quả thao tác.
+- Chưa commit/push workspace, chưa có pipeline Jenkins hoặc triển khai AWS được xác nhận.
+
+## 2026-11-06 — Chuẩn bị mốc truy vấn trước mở rộng dữ liệu
+
+- Thêm database/scripts/performance-baseline.sql, chỉ có SELECT và EXPLAIN ANALYZE cho các SELECT. Xác nhận database trước khi chạy từng block.
+- Đo số dòng, public list core query, full-text và kích thước public tables/indexes.
+- Bộ hiện tại chỉ6 recipes,5 Draft. Kết quả phục vụ baseline nhỏ, chưa đủ để tối ưu index hoặc kết luận tải300 món. Query plan chỉ mô tả phần lõi, chưa bao gồm projection DTO/nested queries hoặc thời gian HTTP.
+
+## 2026-11-06 — Xác nhận số liệu baseline từ DBeaver
+
+- Khánh đã thực hiện chạy các câu lệnh đo baseline trong database/scripts/performance-baseline.sql trên DBeaver (kết nối recipehub_dev, tab Script-4) lúc 16:17:42 - 16:17:54.
+- Kết quả đếm bản ghi: total_recipes = 6 (1 Published, 5 Drafts từ dataset), dataset_entries = 5, database_name = recipehub_dev.
+- Kết quả kích thước 29 bảng trong public: Recipes (table 8192 bytes, index 104 kB, total 120 kB), RefreshTokens (table 8192 bytes, index 80 kB), MealPlanItems (72 kB total), ShoppingLists (72 kB total), AspNetUsers (64 kB total)...
+- Ghi nhận chỉ số index chiếm tỷ trọng lớn ban đầu do GIN index (SearchVector) và các composite indexes. Bằng chứng thực tế được lưu vào DATA_QUALITY_REPORT.md.
+
+## 2026-11-06 — Bootstrap Admin thật và kiểm thử duyệt nguồn trên Swagger
+
+- Khánh chạy `--bootstrap-admin` tạo tài khoản Admin trên `recipehub_dev`: `admin@recipehub.local` (`fea6e3a3-bb7d-41fb-931a-31ab16f5bb49`), xác nhận qua DBeaver lúc 16:27:15 có role `Admin` trong `AspNetUserRoles`.
+- Khánh thử nghiệm `PATCH /api/v1/admin/dataset/70f4835c-49f8-41cf-9ec3-d1f6d5ca5070/review` trên Swagger với giá trị thử nghiệm (`https://example.com/com-chien-trung`). Kết quả DBeaver lúc 16:27:37 xác nhận `com-chien-trung` chuyển `ReviewStatus = Approved` trong khi `Recipes.Status` giữ nguyên `Draft`; 4 món còn lại giữ `Draft/Pending`.
+- Lúc 16:35:40 (ảnh Swagger `200 OK`), Khánh đã chạy lại `PATCH /api/v1/admin/dataset/70f4835c-49f8-41cf-9ec3-d1f6d5ca5070/review` với `status = Pending` và `null` cho các trường nguồn, đưa `com-chien-trung` về lại `Pending` để không lưu nguồn giả `example.com`.
+
+## 2026-11-06 — Chuẩn hóa alias nguyên liệu và chuẩn bị lô 20 món nháp
+
+- Bổ sung `DatasetImporter.CanonizeIngredient` ánh xạ từ đồng nghĩa nguyên liệu tiếng Việt (`thịt lợn` → `Thịt heo`, `đậu phụ` → `Đậu hũ`, `rau mùi` → `Ngò rí`, `mùi tàu` → `Ngò gai`, `mì chính` → `Bột ngọt`, `hành khô` → `Hành tím`, `hành hoa` → `Hành lá`, `cơm nguội` → `Cơm đã nấu`...) và chặn khai báo trùng nguyên liệu đồng nghĩa trong cùng một công thức.
+- Hỗ trợ trường `Description` tùy chọn trong `DatasetRecipe` (bỏ qua khi `null` lúc tính `ContentHash` để giữ tương thích 100% với 5 món đã nhập).
+- Khánh chạy unit test `CanonizeIngredientAndReadValidateAliasesAndDescriptions` đạt `1 passed, 0 failed, 0 skipped` (1.4s).
+- Tạo `data/samples/vietnamese_recipes.batch20.json` gồm 20 món Việt theo `DATASET_PLAN.md` (5 món mẫu giữ nguyên + 15 món mới ở trạng thái `Draft/pending` có `description` riêng). Cả dry-run C# và `Test-RecipeDataset.ps1` đều đạt `Dry-run passed: 20 drafts`.
+
+## 2026-11-06 — Nhập và xác minh mốc 20 món trên `recipehub_dev`
+
+- Khánh chạy `--apply` với `data/samples/vietnamese_recipes.batch20.json`: lượt đầu trả `Import completed: created=15, skipped=5.`, chạy lại lần hai trả `Import completed: created=0, skipped=20.`.
+- Ảnh DBeaver lúc 16:53:54 và 16:56:11 xác nhận trên `recipehub_dev`: `total_dataset_entries = 20`, `pending_entries = 20`, `total_recipes = 21`, `total_ingredients = 33`, `ingredient_links = 113`, `total_steps = 53`, `total_categories = 7`, `category_links = 20`.
+- Dung lượng các bảng chính sau mốc 20 món: `Recipes = 152 kB` (tăng từ 120 kB), `RecipeIngredients = 88 kB` (tăng từ 56 kB), `RecipeSteps = 80 kB` (tăng từ 48 kB), `Ingredients = 40 kB` (giữ nguyên 40 kB). Chi tiết lưu trong `docs/DATA_QUALITY_REPORT.md`.

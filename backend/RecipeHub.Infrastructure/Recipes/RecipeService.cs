@@ -108,6 +108,9 @@ public sealed class RecipeService(RecipeHubDbContext db, TimeProvider clock) : I
             recipe = new Recipe { AuthorId = userId, CreatedAt = clock.GetUtcNow(), Slug = "recipe-" + Guid.NewGuid().ToString("N") };
             db.Recipes.Add(recipe);
         }
+        if (id.HasValue && request.Status == "Published" && await db.Set<RecipeDatasetEntry>()
+            .AnyAsync(entry => entry.RecipeId == id && entry.ReviewStatus != "Approved", ct))
+            throw Invalid("Dataset recipe requires source review before publication.");
         recipe.Title = request.Title.Trim(); recipe.Description = request.Description.Trim(); recipe.Servings = request.Servings;
         recipe.PrepMinutes = request.PrepMinutes; recipe.CookMinutes = request.CookMinutes; recipe.Difficulty = request.Difficulty;
         recipe.Status = request.Status; recipe.UpdatedAt = clock.GetUtcNow();

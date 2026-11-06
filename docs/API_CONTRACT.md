@@ -161,3 +161,7 @@ Không xây CRUD quyền Admin tùy ý trong giao diện giai đoạn đầu. Bo
 ### Chi tiết danh mục và tag
 
 `GET /categories/{id}` và `GET /tags/{id}` công khai trả NamedItem gồm id, name, slug. ID không tồn tại trả404. `GET /admin/categories/{id}` và `GET /admin/tags/{id}` trả cùng DTO và yêu cầu quyền Admin; đây là các đường dẫn Location của API tạo tương ứng.
+
+### Duyệt nguồn dataset
+
+PATCH /admin/dataset/{recipeId}/review yêu cầu Admin. Body {status,sourceName,sourceUrl,licenseIdentifier}; status Pending/Approved/Rejected. Approved yêu cầu tên nguồn và mã giấy phép. SourceUrl null hoặc URL HTTPS tuyệt đối.200 DatasetReviewDto,400 validation,404 khi recipe/metadata không tồn tại. Approved giữ nguyên trạng thái món; thu hồi duyệt đưa món Published về Draft. Audit ghi người duyệt và thời điểm. Việc xác minh nguồn do người duyệt chịu trách nhiệm.

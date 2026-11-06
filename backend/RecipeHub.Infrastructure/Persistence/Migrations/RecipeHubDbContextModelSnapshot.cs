@@ -682,6 +682,57 @@ namespace RecipeHub.Infrastructure.Persistence.Migrations
                     b.ToTable("RecipeCategories", (string)null);
                 });
 
+            modelBuilder.Entity("RecipeHub.Domain.Recipes.RecipeDatasetEntry", b =>
+                {
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("DatasetKey")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateTimeOffset>("ImportedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LicenseIdentifier")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ReviewStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SourceName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("SourceUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.HasKey("RecipeId");
+
+                    b.HasIndex("DatasetKey")
+                        .IsUnique();
+
+                    b.ToTable("RecipeDatasetEntries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Dataset_ReviewStatus", "\"ReviewStatus\" IN ('Pending','Approved','Rejected')");
+                        });
+                });
+
             modelBuilder.Entity("RecipeHub.Domain.Recipes.RecipeImage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1125,6 +1176,15 @@ namespace RecipeHub.Infrastructure.Persistence.Migrations
                     b.HasOne("RecipeHub.Domain.Recipes.Recipe", null)
                         .WithMany("Categories")
                         .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RecipeHub.Domain.Recipes.RecipeDatasetEntry", b =>
+                {
+                    b.HasOne("RecipeHub.Domain.Recipes.Recipe", null)
+                        .WithOne()
+                        .HasForeignKey("RecipeHub.Domain.Recipes.RecipeDatasetEntry", "RecipeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

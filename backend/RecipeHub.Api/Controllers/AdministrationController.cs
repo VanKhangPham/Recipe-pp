@@ -10,6 +10,9 @@ namespace RecipeHub.Api.Controllers;
 [Route("api/v1/admin")]
 public sealed class AdministrationController(IAdministrationService administration) : ControllerBase
 {
+    [HttpPatch("dataset/{recipeId:guid}/review")]
+    public Task<DatasetReviewDto> ReviewDataset(Guid recipeId, DatasetReviewWrite request, CancellationToken ct) =>
+        administration.ReviewDatasetAsync(User.RequiredId(), recipeId, request, ct);
     [HttpGet("users")]
     public Task<PageResult<AdminUserDto>> Users([FromQuery] PageQuery page, CancellationToken ct) => administration.UsersAsync(page, ct);
     [HttpPatch("users/{id:guid}/status")]

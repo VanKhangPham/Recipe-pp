@@ -4,6 +4,7 @@ using RecipeHub.Application.Features;
 using RecipeHub.Application.Identity;
 using RecipeHub.Application.Recipes;
 using RecipeHub.Domain.Features;
+using RecipeHub.Domain.Recipes;
 using RecipeHub.Infrastructure.Identity;
 using RecipeHub.Infrastructure.Persistence;
 using RecipeHub.Infrastructure.Recipes;
@@ -14,6 +15,31 @@ namespace RecipeHub.Infrastructure.Features;
 public sealed class AdministrationService(RecipeHubDbContext db, RecipeService recipes, UserManager<ApplicationUser> users,
     RoleManager<IdentityRole<Guid>> roles, IAuthService auth, TimeProvider clock) : IAdministrationService
 {
+    public async Task<DatasetReviewDto> ReviewDatasetAsync(Guid actorId, Guid recipeId, DatasetReviewWrite request, CancellationToken ct)
+    {
+        if (request.Status is not ("Pending" or "Approved" or "Rejected")) throw Invalid("Invalid dataset review status.");
+        if (request.Status == "Approved" && (string.IsNullOrWhiteSpace(request.SourceName) || string.IsNullOrWhiteSpace(request.LicenseIdentifier)))
+            throw Invalid("Approval requires a verified source name and license identifier.");
+        if (request.SourceUrl is not null && (!Uri.TryCreate(request.SourceUrl, UriKind.Absolute, out var url) || url.Scheme != "https"))
+            throw Invalid("Source URL must be absolute HTTPS or null.");
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"Recipes\" WHERE \"Id\" = {recipeId} FOR UPDATE", ct);
+        var recipe = await db.Recipes.SingleOrDefaultAsync(value => value.Id == recipeId, ct) ?? throw Missing();
+        await db.Entry(recipe).ReloadAsync(ct);
+        var entry = await db.Set<RecipeDatasetEntry>().SingleOrDefaultAsync(value => value.RecipeId == recipeId, ct) ?? throw Missing();
+        await db.Entry(entry).ReloadAsync(ct);
+        entry.ReviewStatus = request.Status;
+        entry.SourceName = request.SourceName?.Trim();
+        entry.SourceUrl = request.SourceUrl;
+        entry.LicenseIdentifier = request.LicenseIdentifier?.Trim();
+        if (request.Status != "Approved" && recipe.Status == "Published") recipe.Status = "Draft";
+        recipe.UpdatedAt = clock.GetUtcNow();
+        Audit(actorId, "DatasetReview" + request.Status, "Recipe", recipeId);
+        await recipes.SaveAsync(ct);
+        await transaction.CommitAsync(ct);
+        return new(recipeId, entry.DatasetKey, entry.ReviewStatus, entry.SourceName, entry.SourceUrl, entry.LicenseIdentifier);
+    }
+
     private IQueryable<AdminUserDto> UserDtos(IQueryable<ApplicationUser> accounts) => accounts.Select(user => new AdminUserDto(user.Id, user.Email!, user.DisplayName,
         (from link in db.UserRoles join role in db.Roles on link.RoleId equals role.Id where link.UserId == user.Id select role.Name!).ToArray(),
         user.LockoutEnabled && user.LockoutEnd > clock.GetUtcNow(), user.CreatedAt));

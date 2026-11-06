@@ -14,3 +14,19 @@ Kiểm tra `http://localhost:8080/health/live` và `http://localhost:8080/health
 Image chạy bằng tài khoản ứng dụng tích hợp của .NET. Khi triển khai AWS, đặt API sau HTTPS reverse proxy, giữ cổng API ở mạng nội bộ và cấu hình origins theo frontend thực tế. Trước khi sử dụng refresh cookies trên production, kiểm chứng HTTPS, proxy headers và khả năng duy trì cookie/Data Protection qua lần restart.
 
 Trạng thái ngày 2026-11-05 — Dockerfile đã được soạn. Máy làm việc hiện chưa có lệnh Docker khả dụng nên image chưa được build hoặc chạy thử. RecipeHub chưa có EC2 được xác nhận đã tạo. Các bước HTTPS, restart/reboot, logs và rollback cần được thực hiện trên máy đích trước nghiệm thu AWS.
+
+## 2026-11-06 — Docker được kiểm chứng trên Windows
+
+Docker Desktop Linux Engine đã chạy. CLI tại C:\Users\ADMIN\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe. Build image recipehub-api:local từ backend.Dockerfile thành công.
+
+Container recipehub-api-local chạy Production, bind127.0.0.1:8080, uid1654(app), kết nối lấy từ User Secrets ở runtime. Khóa JWT ngẫu nhiên chỉ phục vụ kiểm tra container local. Không lưu secrets vào image/repository. Liveness/readiness200 Healthy, system200, ingredients read200, Swagger404. Restart container và kiểm tra lại liveness/readiness đều200. Các kiểm tra này chỉ đọc DB.
+
+Container còn chạy để Khánh xem trong Docker Desktop. Chưa kiểm chứng auth/cookies qua HTTPS trong container, Jenkins, AWS hoặc reboot Windows. Không dùng kết quả này làm nghiệm thu production.
+
+## 2026-11-06 — Image cập nhật importer và review
+
+Build recipehub-api:local từ mã hiện tại thành công. Image ID4359cd51acf098a7e18c2056ce54b5abb7a8001ab54134fc807bc71cea5419eb. Chạy dry-run trong image với thư mục data mount read-only trả5 drafts. Container Production tạm ở localhost8081 trả200 cho health/live,health/ready,system vàingredients read, sau đó đã tự dọn. Kết nối Neon lấy từ User Secrets vào environment runtime; không ghi database trong bước kiểm tra. Để dùng image này trên container8080 hiện có cần tạo lại container từ image mới. Chưa kiểm chứng HTTPS/auth trên container mới hoặc Jenkins/AWS.
+
+## 2026-11-06 — Cập nhật container local tại8080
+
+Container cũ đã dừng, được giữ tên recipehub-api-backup để quay lui. Container recipehub-api-local mới dùng image4359cd51acf098a7e18c2056ce54b5abb7a8001ab54134fc807bc71cea5419eb, bind127.0.0.1:8080. Liveness/readiness/system/ingredients đều200. Restart xong readiness tiếp tục200. Runtime environment được tái sử dụng kín đáo từ container local trước đó. Chưa kiểm chứng auth/HTTPS hoặc tự khởi động cùng máy. Không áp dụng migration hoặc nhập dữ liệu trong bước này.

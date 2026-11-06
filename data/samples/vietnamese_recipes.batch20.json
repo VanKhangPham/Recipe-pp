@@ -1,0 +1,989 @@
+[
+  {
+    "datasetKey": "trung-chien-hanh",
+    "title": "Trứng chiên hành",
+    "category": "Trứng và đậu hũ",
+    "servings": 2,
+    "prepMinutes": 5,
+    "cookMinutes": 6,
+    "status": "Draft",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Trứng gà",
+        "quantity": 3,
+        "unit": "piece"
+      },
+      {
+        "name": "Hành lá",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Rửa hành lá, thái nhỏ. Đập trứng vào bát rồi đánh đều với hành và muối.",
+      "Làm nóng dầu trong chảo, đổ trứng vào và dàn đều. Khi mặt dưới se lại, lật trứng và tiếp tục nấu cho tới khi cả hai mặt chín."
+    ]
+  },
+  {
+    "datasetKey": "canh-ca-chua-trung",
+    "title": "Canh cà chua trứng",
+    "category": "Các món canh",
+    "servings": 2,
+    "prepMinutes": 5,
+    "cookMinutes": 12,
+    "status": "Draft",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Cà chua",
+        "quantity": 180,
+        "unit": "g"
+      },
+      {
+        "name": "Trứng gà",
+        "quantity": 2,
+        "unit": "piece"
+      },
+      {
+        "name": "Nước",
+        "quantity": 500,
+        "unit": "ml"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Rửa sạch cà chua, bổ múi cau. Đập trứng vào bát và đánh tan.",
+      "Xào cà chua với dầu đến khi mềm rồi thêm nước và muối. Khi nước sôi, rót trứng thành dòng nhỏ và khuấy nhẹ. Đun đến khi trứng chín."
+    ]
+  },
+  {
+    "datasetKey": "rau-muong-xao-toi",
+    "title": "Rau muống xào tỏi",
+    "category": "Rau, củ, quả",
+    "servings": 2,
+    "prepMinutes": 10,
+    "cookMinutes": 6,
+    "status": "Draft",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Rau muống",
+        "quantity": 300,
+        "unit": "g"
+      },
+      {
+        "name": "Tỏi",
+        "quantity": 8,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Nhặt rau, bỏ phần già, rửa sạch rồi cắt khúc. Bóc vỏ và đập dập tỏi.",
+      "Làm nóng dầu, đảo tỏi đến khi thơm. Cho phần cọng rau vào trước, tiếp theo cho lá và muối. Đảo tới khi rau chín vừa ăn."
+    ]
+  },
+  {
+    "datasetKey": "dau-hu-sot-ca-chua",
+    "title": "Đậu hũ sốt cà chua",
+    "category": "Trứng và đậu hũ",
+    "servings": 2,
+    "prepMinutes": 8,
+    "cookMinutes": 15,
+    "status": "Draft",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Đậu hũ",
+        "quantity": 300,
+        "unit": "g"
+      },
+      {
+        "name": "Cà chua",
+        "quantity": 200,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "name": "Nước",
+        "quantity": 60,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Để đậu ráo nước rồi cắt miếng vừa ăn. Rửa cà chua và thái nhỏ.",
+      "Áp chảo đậu với dầu rồi gắp ra. Cho cà chua vào chảo, thêm nước và muối, nấu tới khi thành sốt.",
+      "Cho đậu trở lại chảo. Lật nhẹ để miếng đậu phủ đều sốt rồi đun nhỏ lửa tới khi nóng đều."
+    ]
+  },
+  {
+    "datasetKey": "com-chien-trung",
+    "title": "Cơm chiên trứng",
+    "category": "Cơm, cháo, bún, mì",
+    "servings": 2,
+    "prepMinutes": 5,
+    "cookMinutes": 8,
+    "status": "Draft",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Cơm đã nấu",
+        "quantity": 350,
+        "unit": "g"
+      },
+      {
+        "name": "Trứng gà",
+        "quantity": 2,
+        "unit": "piece"
+      },
+      {
+        "name": "Hành lá",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Xới tơi cơm. Rửa hành lá, thái nhỏ và đánh tan trứng trong bát.",
+      "Đun nóng dầu, đổ trứng vào và đảo đến khi trứng vừa đông. Cho cơm và muối vào, đảo tới khi cơm nóng đều. Thêm hành lá trước khi tắt bếp."
+    ]
+  },
+  {
+    "datasetKey": "thit-kho-trung",
+    "title": "Thịt kho trứng",
+    "category": "Thịt, gà, vịt",
+    "servings": 4,
+    "prepMinutes": 15,
+    "cookMinutes": 45,
+    "status": "Draft",
+    "description": "Thịt heo kho mềm cùng trứng gà trong nước kho mặn ngọt cho bữa cơm gia đình (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Thịt heo",
+        "quantity": 400,
+        "unit": "g"
+      },
+      {
+        "name": "Trứng gà",
+        "quantity": 4,
+        "unit": "piece"
+      },
+      {
+        "name": "Hành tím",
+        "quantity": 15,
+        "unit": "g"
+      },
+      {
+        "name": "Nước mắm",
+        "quantity": 30,
+        "unit": "ml"
+      },
+      {
+        "name": "Đường",
+        "quantity": 15,
+        "unit": "g"
+      },
+      {
+        "name": "Nước",
+        "quantity": 400,
+        "unit": "ml"
+      }
+    ],
+    "steps": [
+      "Rửa sạch thịt heo, thái miếng vuông vừa ăn rồi ướp với hành tím băm, nước mắm và đường trong 15 phút. Luộc chín trứng gà và bóc vỏ.",
+      "Cho thịt vào nồi đảo săn, thêm nước vừa ngập mặt thịt và đun sôi rồi hạ lửa nhỏ kho 30 phút.",
+      "Cho trứng đã bóc vỏ vào kho tiếp 15 phút đến khi thịt mềm và thấm vị."
+    ]
+  },
+  {
+    "datasetKey": "thit-rang-chay-canh",
+    "title": "Thịt rang cháy cạnh",
+    "category": "Thịt, gà, vịt",
+    "servings": 3,
+    "prepMinutes": 10,
+    "cookMinutes": 15,
+    "status": "Draft",
+    "description": "Thịt heo thái mỏng đảo xém cạnh đậm vị nước mắm và hành lá (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Thịt heo",
+        "quantity": 300,
+        "unit": "g"
+      },
+      {
+        "name": "Hành tím",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Hành lá",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Nước mắm",
+        "quantity": 15,
+        "unit": "ml"
+      },
+      {
+        "name": "Đường",
+        "quantity": 5,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Rửa sạch thịt heo, thái lát mỏng vừa ăn. Băm nhỏ hành tím và cắt khúc hành lá.",
+      "Cho thịt vào chảo đảo trên lửa vừa đến khi tiết bớt mỡ và hai mặt thịt xém vàng.",
+      "Chắt bớt mỡ thừa nếu nhiều, phi thơm hành tím rồi nêm nước mắm và đường. Đảo đều cùng hành lá rồi tắt bếp."
+    ]
+  },
+  {
+    "datasetKey": "suon-xao-chua-ngot",
+    "title": "Sườn xào chua ngọt",
+    "category": "Thịt, gà, vịt",
+    "servings": 3,
+    "prepMinutes": 15,
+    "cookMinutes": 25,
+    "status": "Draft",
+    "description": "Sườn heo rim sốt cà chua và giấm đường chua ngọt hài hòa (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Sườn heo",
+        "quantity": 400,
+        "unit": "g"
+      },
+      {
+        "name": "Cà chua",
+        "quantity": 150,
+        "unit": "g"
+      },
+      {
+        "name": "Tỏi",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Nước mắm",
+        "quantity": 20,
+        "unit": "ml"
+      },
+      {
+        "name": "Đường",
+        "quantity": 20,
+        "unit": "g"
+      },
+      {
+        "name": "Giấm",
+        "quantity": 15,
+        "unit": "ml"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 15,
+        "unit": "ml"
+      }
+    ],
+    "steps": [
+      "Chặt sườn heo miếng vừa ăn, chần qua nước sôi rồi để ráo. Thái nhỏ cà chua và băm tỏi.",
+      "Làm nóng dầu ăn, áp chảo sườn vàng đều hai mặt rồi phi thơm tỏi và cho cà chua vào xào mềm.",
+      "Pha nước mắm, đường và giấm với ít nước lọc, đổ vào chảo rim nhỏ lửa tới khi sườn mềm và sốt sánh bám đều."
+    ]
+  },
+  {
+    "datasetKey": "ga-kho-gung",
+    "title": "Gà kho gừng",
+    "category": "Thịt, gà, vịt",
+    "servings": 3,
+    "prepMinutes": 15,
+    "cookMinutes": 25,
+    "status": "Draft",
+    "description": "Thịt gà kho gừng tươi ấm bụng, dậy mùi thơm đặc trưng cho bữa tối (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Thịt gà",
+        "quantity": 400,
+        "unit": "g"
+      },
+      {
+        "name": "Gừng",
+        "quantity": 25,
+        "unit": "g"
+      },
+      {
+        "name": "Hành tím",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Nước mắm",
+        "quantity": 20,
+        "unit": "ml"
+      },
+      {
+        "name": "Đường",
+        "quantity": 8,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "name": "Nước",
+        "quantity": 120,
+        "unit": "ml"
+      }
+    ],
+    "steps": [
+      "Chặt thịt gà miếng vừa ăn. Cạo vỏ gừng, thái sợi và băm nhỏ hành tím; ướp gà với nửa phần gừng, hành tím, nước mắm và đường trong 15 phút.",
+      "Phi thơm phần hành tím và gừng còn lại với dầu ăn, cho thịt gà vào đảo săn.",
+      "Thêm nước ấm, đậy nắp kho lửa nhỏ đến khi gà chín mềm và nước kho sánh lại."
+    ]
+  },
+  {
+    "datasetKey": "bo-xao-hanh-tay",
+    "title": "Bò xào hành tây",
+    "category": "Thịt, gà, vịt",
+    "servings": 2,
+    "prepMinutes": 10,
+    "cookMinutes": 8,
+    "status": "Draft",
+    "description": "Thịt bò thái mỏng xào nhanh lửa lớn cùng hành tây giòn ngọt (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Thịt bò",
+        "quantity": 200,
+        "unit": "g"
+      },
+      {
+        "name": "Hành tây",
+        "quantity": 150,
+        "unit": "g"
+      },
+      {
+        "name": "Tỏi",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "name": "Tiêu",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Thái mỏng thịt bò ngang thớ, ướp với một nửa tỏi băm, chút muối và tiêu. Bóc vỏ hành tây, bổ múi cau.",
+      "Đun nóng dầu trên lửa lớn, phi thơm tỏi rồi đảo nhanh thịt bò vừa chín tới và trút ra đĩa.",
+      "Xào hành tây khoảng 2 phút cho chín giòn, trút thịt bò trở lại đảo đều rồi tắt bếp."
+    ]
+  },
+  {
+    "datasetKey": "ca-kho-to",
+    "title": "Cá kho tộ",
+    "category": "Cá, tôm, hải sản",
+    "servings": 3,
+    "prepMinutes": 15,
+    "cookMinutes": 30,
+    "status": "Draft",
+    "description": "Cá cắt khúc kho nước mắm, tiêu và hành lá đậm vị đưa cơm (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Cá lóc",
+        "quantity": 400,
+        "unit": "g"
+      },
+      {
+        "name": "Hành tím",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Hành lá",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Nước mắm",
+        "quantity": 25,
+        "unit": "ml"
+      },
+      {
+        "name": "Đường",
+        "quantity": 12,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "name": "Tiêu",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "name": "Nước",
+        "quantity": 150,
+        "unit": "ml"
+      }
+    ],
+    "steps": [
+      "Làm sạch cá lóc, cắt khúc vừa ăn và để ráo. Ướp cá với hành tím băm, nước mắm và đường trong 15 phút.",
+      "Xếp cá vào nồi cùng dầu ăn và nước ấm, đun sôi rồi hạ lửa nhỏ kho liu riu đến khi nước kho sánh.",
+      "Rắc hành lá cắt nhỏ và tiêu lên mặt cá trước khi tắt bếp."
+    ]
+  },
+  {
+    "datasetKey": "tom-rim-man-ngot",
+    "title": "Tôm rim mặn ngọt",
+    "category": "Cá, tôm, hải sản",
+    "servings": 2,
+    "prepMinutes": 10,
+    "cookMinutes": 12,
+    "status": "Draft",
+    "description": "Tôm tươi rim nước mắm đường bóng đẹp, mặn ngọt vừa ăn (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Tôm tươi",
+        "quantity": 250,
+        "unit": "g"
+      },
+      {
+        "name": "Tỏi",
+        "quantity": 8,
+        "unit": "g"
+      },
+      {
+        "name": "Hành lá",
+        "quantity": 8,
+        "unit": "g"
+      },
+      {
+        "name": "Nước mắm",
+        "quantity": 15,
+        "unit": "ml"
+      },
+      {
+        "name": "Đường",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      }
+    ],
+    "steps": [
+      "Cắt râu tôm, rút chỉ lưng, rửa sạch và để ráo. Băm nhỏ tỏi và thái nhỏ hành lá.",
+      "Phi thơm tỏi với dầu ăn, cho tôm vào đảo đều đến khi vỏ tôm chuyển màu đỏ cam.",
+      "Nêm nước mắm và đường, đảo lửa vừa cho sốt áo đều quanh con tôm rồi rắc hành lá và tắt bếp."
+    ]
+  },
+  {
+    "datasetKey": "canh-rau-ngot-thit-bam",
+    "title": "Canh rau ngót thịt băm",
+    "category": "Các món canh",
+    "servings": 3,
+    "prepMinutes": 10,
+    "cookMinutes": 10,
+    "status": "Draft",
+    "description": "Canh rau ngót nấu thịt heo băm thanh mát, dễ ăn hằng ngày (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Rau ngót",
+        "quantity": 200,
+        "unit": "g"
+      },
+      {
+        "name": "Thịt băm",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "name": "Hành tím",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 3,
+        "unit": "g"
+      },
+      {
+        "name": "Nước",
+        "quantity": 700,
+        "unit": "ml"
+      }
+    ],
+    "steps": [
+      "Tuốt lá rau ngót, rửa sạch rồi vò nhẹ để rau mềm khi nấu. Băm nhỏ hành tím.",
+      "Phi thơm hành tím với dầu ăn, cho thịt băm vào xào tơi rồi đổ nước vào đun sôi và hớt bọt.",
+      "Cho rau ngót và muối vào nồi, đun sôi thêm 3 phút tới khi rau chín mềm thì tắt bếp."
+    ]
+  },
+  {
+    "datasetKey": "canh-bi-do-nau-tom",
+    "title": "Canh bí đỏ nấu tôm",
+    "category": "Các món canh",
+    "servings": 3,
+    "prepMinutes": 10,
+    "cookMinutes": 15,
+    "status": "Draft",
+    "description": "Canh bí đỏ bùi ngọt nấu cùng tôm tươi băm và hành ngò (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Bí đỏ",
+        "quantity": 300,
+        "unit": "g"
+      },
+      {
+        "name": "Tôm tươi",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "name": "Hành lá",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 3,
+        "unit": "g"
+      },
+      {
+        "name": "Nước",
+        "quantity": 700,
+        "unit": "ml"
+      }
+    ],
+    "steps": [
+      "Gọt vỏ bí đỏ, bỏ ruột, rửa sạch và cắt miếng vừa ăn. Bóc vỏ tôm, rút chỉ lưng và băm thô.",
+      "Xào săn tôm với dầu ăn, thêm nước và bí đỏ vào đun sôi rồi hạ lửa vừa nấu khoảng 10 phút.",
+      "Khi bí đỏ chín mềm, nêm muối vừa ăn, rắc hành lá cắt nhỏ rồi tắt bếp."
+    ]
+  },
+  {
+    "datasetKey": "bap-cai-xao-ca-rot",
+    "title": "Bắp cải xào cà rốt",
+    "category": "Rau, củ, quả",
+    "servings": 2,
+    "prepMinutes": 10,
+    "cookMinutes": 7,
+    "status": "Draft",
+    "description": "Bắp cải và cà rốt thái sợi xào tỏi chín tới, giữ độ giòn ngọt tự nhiên (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Bắp cải",
+        "quantity": 250,
+        "unit": "g"
+      },
+      {
+        "name": "Cà rốt",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "name": "Tỏi",
+        "quantity": 6,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Thái sợi vừa ăn bắp cải và cà rốt, rửa sạch rồi để ráo. Bóc vỏ và đập dập tỏi.",
+      "Làm nóng dầu ăn, phi thơm tỏi rồi cho cà rốt vào đảo trước khoảng 2 phút.",
+      "Cho bắp cải và muối vào đảo đều trên lửa lớn tới khi rau vừa chín giòn thì tắt bếp."
+    ]
+  },
+  {
+    "datasetKey": "dau-que-xao-toi",
+    "title": "Đậu que xào tỏi",
+    "category": "Rau, củ, quả",
+    "servings": 2,
+    "prepMinutes": 8,
+    "cookMinutes": 7,
+    "status": "Draft",
+    "description": "Đậu que tước xơ xào tỏi xanh giòn cho bữa cơm thanh đạm (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Đậu que",
+        "quantity": 250,
+        "unit": "g"
+      },
+      {
+        "name": "Tỏi",
+        "quantity": 8,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Tước xơ hai bên quả đậu que, rửa sạch và cắt khúc xéo vừa ăn. Băm nhỏ tỏi.",
+      "Đun nóng dầu ăn, phi thơm tỏi rồi cho đậu que và muối vào đảo đều đến khi đậu chín xanh giòn."
+    ]
+  },
+  {
+    "datasetKey": "trung-sot-ca-chua",
+    "title": "Trứng sốt cà chua",
+    "category": "Trứng và đậu hũ",
+    "servings": 2,
+    "prepMinutes": 5,
+    "cookMinutes": 10,
+    "status": "Draft",
+    "description": "Trứng bác mềm quyện cùng sốt cà chua đậm đà, nhanh gọn cho sinh viên và gia đình (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Trứng gà",
+        "quantity": 3,
+        "unit": "piece"
+      },
+      {
+        "name": "Cà chua",
+        "quantity": 200,
+        "unit": "g"
+      },
+      {
+        "name": "Hành lá",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Đánh tan trứng gà. Rửa sạch cà chua, thái hạt lựu và cắt nhỏ hành lá.",
+      "Đun nóng một nửa lượng dầu, đảo trứng vừa chín mềm rồi trút ra bát.",
+      "Xào cà chua với phần dầu còn lại và muối đến khi nhuyễn thành sốt, cho trứng trở lại đảo đều và rắc hành lá."
+    ]
+  },
+  {
+    "datasetKey": "dau-hu-kho-nam",
+    "title": "Đậu hũ kho nấm",
+    "category": "Món chay",
+    "servings": 2,
+    "prepMinutes": 10,
+    "cookMinutes": 15,
+    "status": "Draft",
+    "description": "Đậu hũ áp chảo kho cùng nấm rơm và nước tương đậm vị chay thanh nhẹ (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Đậu hũ",
+        "quantity": 250,
+        "unit": "g"
+      },
+      {
+        "name": "Nấm rơm",
+        "quantity": 150,
+        "unit": "g"
+      },
+      {
+        "name": "Nước tương",
+        "quantity": 25,
+        "unit": "ml"
+      },
+      {
+        "name": "Đường",
+        "quantity": 5,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "name": "Nước",
+        "quantity": 80,
+        "unit": "ml"
+      }
+    ],
+    "steps": [
+      "Cắt đậu hũ thành miếng vuông và áp chảo vàng nhẹ. Cắt gốc nấm rơm, rửa sạch và bổ đôi cây nấm lớn.",
+      "Cho đậu hũ, nấm rơm, nước tương, đường và nước vào nồi, kho nhỏ lửa 10 phút tới khi thấm đều gia vị."
+    ]
+  },
+  {
+    "datasetKey": "chao-thit-bam",
+    "title": "Cháo thịt băm",
+    "category": "Cơm, cháo, bún, mì",
+    "servings": 2,
+    "prepMinutes": 10,
+    "cookMinutes": 30,
+    "status": "Draft",
+    "description": "Cháo gạo tẻ nấu nhừ cùng thịt heo băm và hành lá ấm bụng (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Gạo tẻ",
+        "quantity": 80,
+        "unit": "g"
+      },
+      {
+        "name": "Thịt băm",
+        "quantity": 100,
+        "unit": "g"
+      },
+      {
+        "name": "Hành lá",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Muối",
+        "quantity": 3,
+        "unit": "g"
+      },
+      {
+        "name": "Tiêu",
+        "quantity": 1,
+        "unit": "g"
+      },
+      {
+        "name": "Nước",
+        "quantity": 900,
+        "unit": "ml"
+      }
+    ],
+    "steps": [
+      "Vo sạch gạo tẻ, cho vào nồi cùng nước đun sôi rồi hạ lửa nhỏ ninh khoảng 25 phút tới khi hạt gạo nở mềm.",
+      "Ướp thịt băm với chút muối, cho vào nồi cháo khuấy đều và đun sôi thêm 5 phút cho thịt chín hoàn toàn. Rắc hành lá và tiêu khi dùng."
+    ]
+  },
+  {
+    "datasetKey": "nam-kho-tieu",
+    "title": "Nấm kho tiêu",
+    "category": "Món chay",
+    "servings": 2,
+    "prepMinutes": 10,
+    "cookMinutes": 15,
+    "status": "Draft",
+    "description": "Nấm rơm kho nước tương và tiêu cay nhẹ, đậm đà cho thực đơn chay (bản nháp chờ kiểm chứng).",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Nấm rơm",
+        "quantity": 250,
+        "unit": "g"
+      },
+      {
+        "name": "Nước tương",
+        "quantity": 25,
+        "unit": "ml"
+      },
+      {
+        "name": "Đường",
+        "quantity": 6,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "name": "Tiêu",
+        "quantity": 2,
+        "unit": "g"
+      },
+      {
+        "name": "Nước",
+        "quantity": 50,
+        "unit": "ml"
+      }
+    ],
+    "steps": [
+      "Gọt sạch chân nấm rơm, ngâm rửa nhanh với nước rồi để ráo.",
+      "Xào sơ nấm với dầu ăn, thêm nước tương, đường và nước vào kho nhỏ lửa đến khi sốt cạn sệt thì rắc tiêu."
+    ]
+  }
+]

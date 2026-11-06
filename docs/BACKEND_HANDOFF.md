@@ -39,3 +39,7 @@ Khánh còn phải hoàn thiện dataset/seed lớn, đo dung lượng và hiệ
 ## Quy trình phối hợp
 
 Khang và Linh làm trên nhánh riêng, tạo pull request vào nhánh tích hợp nhóm thống nhất. Khánh bàn giao một commit cụ thể và cập nhật API_CONTRACT khi payload thay đổi. Mỗi lỗi tích hợp cần ghi method, URL, HTTP status và traceId cùng dữ liệu mẫu đã loại secrets. Chạy tests trước merge, dùng image gắn commit SHA để triển khai đúng phiên bản.
+
+## Kết quả kiểm thử cập nhật ngày2026-11-06
+
+Bộ đầy đủ hiện đạt36/36 với PostgreSQL18 Docker tạm,0 failed,0 skipped. Bao gồm importer/rollback, HTTP duyệt nguồn và quyền truy cập, cùng các luồng backend trước đó. Năm món development đang Draft/Pending, chưa có xác nhận duyệt nội dung hoặc quyền công khai. Mã cập nhật sau nhánh bàn giao đã push còn cần commit/push. Image local cần build lại để chứa importer/review mới.

@@ -18,6 +18,21 @@ public sealed class RecipeHubDbContext(DbContextOptions<RecipeHubDbContext> opti
     {
         base.OnModelCreating(model);
         model.ConfigureFeatures();
+        model.Entity<RecipeDatasetEntry>(b =>
+        {
+            b.ToTable("RecipeDatasetEntries", table =>
+                table.HasCheckConstraint("CK_Dataset_ReviewStatus", "\"ReviewStatus\" IN ('Pending','Approved','Rejected')"));
+            b.HasKey(x => x.RecipeId);
+            b.HasOne<Recipe>().WithOne().HasForeignKey<RecipeDatasetEntry>(x => x.RecipeId).OnDelete(DeleteBehavior.Cascade);
+            b.Property(x => x.DatasetKey).HasMaxLength(150).IsRequired();
+            b.HasIndex(x => x.DatasetKey).IsUnique();
+            b.Property(x => x.ContentHash).HasMaxLength(64).IsRequired();
+            b.Property(x => x.SourceType).HasMaxLength(100).IsRequired();
+            b.Property(x => x.SourceName).HasMaxLength(200);
+            b.Property(x => x.SourceUrl).HasMaxLength(2048);
+            b.Property(x => x.LicenseIdentifier).HasMaxLength(100);
+            b.Property(x => x.ReviewStatus).HasMaxLength(20).IsRequired();
+        });
         model.Entity<ApplicationUser>(b =>
         {
             b.Property(x => x.DisplayName).HasMaxLength(100).IsRequired();
