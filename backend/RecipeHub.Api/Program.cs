@@ -3,9 +3,27 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using RecipeHub.Api.Identity;
 using Microsoft.OpenApi;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+var keysPath = builder.Configuration["DataProtection:KeysPath"];
+if (!string.IsNullOrWhiteSpace(keysPath))
+{
+    Directory.CreateDirectory(keysPath);
+    builder.Services.AddDataProtection()
+        .SetApplicationName("RecipeHub")
+        .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+}
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddRecipeHubAuthentication(builder.Configuration, builder.Environment);
@@ -81,6 +99,7 @@ if (args.Contains("--bootstrap-admin", StringComparer.Ordinal))
     return;
 }
 
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 if (app.Environment.IsDevelopment())

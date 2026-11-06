@@ -408,3 +408,16 @@ Trạng thái: **Completed** cho milestone Authentication cơ bản có kiểm t
   - `GET /api/v1/recipes?Q=trứng`: Cold `126,76 ms`, Warm `p50 = 97,15 ms`, `p95 = 107,28 ms`, `Avg = 97,34 ms`, `Errors = 0/20`.
   - `GET /api/v1/categories`: Cold `70,53 ms`, Warm `p50 = 50,88 ms`, `p95 = 55,16 ms`, `Avg = 51,46 ms`, `Errors = 0/20`.
   - `GET /api/v1/ingredients`: Cold `144,02 ms`, Warm `p50 = 92,16 ms`, `p95 = 100,68 ms`, `Avg = 92,53 ms`, `Errors = 0/20`.
+
+## 2026-11-07 — Commit `d1bb66e`, cập nhật Docker `recipehub-api:d1bb66e` và chuẩn bị Backup/Restore PostgreSQL 18
+
+- Khánh chạy `dotnet test` đạt `25 passed, 0 failed, 12 skipped` (2,9s) và push commit `d1bb66e` (`"Expand dataset to 100 and 300 recipes and add 200MB cloud performance benchmark"`) lên `origin/khanh_backend`.
+- Cập nhật `backend/RecipeHub.Api/Program.cs` (`UseForwardedHeaders` + `DataProtection:KeysPath`), tạo `infrastructure/nginx/recipehub.conf` và `infrastructure/docker/docker-compose.backend.yml`.
+- Build image `recipehub-api:local` / `recipehub-api:d1bb66e` (`sha256:6f5cd2ba811c8f63eed3ed3abf641be1494bb5bc0f2d1d600f258a060aacde35`). Kiểm chứng `/health/live` và `/health/ready` trả `Healthy` ở cổng `8080`.
+- Thêm `database/seeds/Invoke-BackupRestoreDrill.ps1` và `docs/deployment/BACKUP_RESTORE_AND_ROLLBACK.md` để diễn tập `pg_dump` / `pg_restore` PostgreSQL 18 và rollback container.
+- Khánh chạy `Invoke-BackupRestoreDrill.ps1` thành công toàn bộ 5 bước:
+  - Công cụ: `pg_dump` / `pg_restore` `PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2)`.
+  - Backup từ Cloud Neon `recipehub_dev`: `32,35s` (lượt đầu `40,54s`), file `recipehub_dev_curated_pg18.dump` (`32.791,37 KB`).
+  - Restore vào container `postgres:18` cách ly (`recipehub_restore_verify`): **`3,95s`**.
+  - Đối chiếu khớp 100%: `public_tables = 29`, `total_recipes = 301`, `published_recipes = 23`, `dataset_entries = 300`, `approved_entries = 22`, `ingredients = 96`, `recipe_ingredients = 1783`, `recipe_steps = 613`, `categories = 7`, `roles = 2`, `users = 14`, `recipe_views = 18400`, `shopping_list_items = 50001`, `audit_logs = 575004`, `restored_db_size = 188 MB`.
+  - Rollback container `8080` về `recipehub-api:3c78330` (`live=Healthy, ready=Healthy`) và Roll-forward lên `recipehub-api:d1bb66e` (`live=Healthy, ready=Healthy`).

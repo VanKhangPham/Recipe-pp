@@ -171,4 +171,12 @@ Các tên dưới đây tính từ workspace gốc đã nêu:
 - docs/deployment/BACKEND_CONTAINER.md và infrastructure/docker/backend.Dockerfile.
 - database/scripts/check-size.sql, performance-baseline.sql, add-recipe-dataset-entries.sql và các EF migrations.
 
-Hãy bắt đầu bằng kiểm tra trạng thái mã nguồn/Git và đối chiếu các việc còn mở. Báo ngắn gọn việc đang xử lý, làm tiếp phần có thể thực hiện ngay, chỉ yêu cầu Khánh thao tác khi cần thông tin hoặc bằng chứng thực tế. Nêu rõ môi trường cho mọi lệnh và kết quả mong đợi. Đừng tuyên bố hoàn tất dataset300 món, hiệu năng, Jenkins hoặc AWS khi chưa có bằng chứng.
+## 13. Cập nhật thực tế đến ngày 2026-11-07 (Đã hoàn thành Mục 1–5, 7, 9 của Khánh)
+
+- **Bootstrap Admin & Duyệt nguồn / Xuất bản thật (Mục 2)**: Đã tạo tài khoản Admin `admin@recipehub.local` (`fea6e3a3-bb7d-41fb-931a-31ab16f5bb49`), duyệt và xuất bản 23 món công khai (`22` món dataset `Approved` + `1` món test ban đầu), giữ 278 món `Draft / Pending`.
+- **Mở rộng Dataset 20 → 100 → 300 món Việt trên Cloud Neon (Mục 3)**: Đã tạo `vietnamese_recipes.batch20.json`, `batch100.json`, `batch300.json`, bổ sung từ điển chuẩn hóa `DatasetImporter.CanonizeIngredient`, nạp đủ 300 món lên `recipehub_dev` (`total_recipes = 301`, `total_ingredients = 96`, `ingredient_links = 1783`, `total_steps = 613`, `categories = 7`).
+- **Kiểm thử dữ liệu lớn 198,3 MB & Hiệu năng trên Cloud Neon (Mục 4)**: Đã nạp tải đạt `198,3 MB` (`AuditLogs = 575.004`, `ShoppingListItems = 50.001`, `RecipeViews = 18.400`), đo `EXPLAIN (ANALYZE, BUFFERS)` xác nhận `BitmapAnd` + GIN `SearchVector` (`1,532 ms`) và `HashAggregate` 18.400 lượt xem (`9,970 ms`), đo HTTP API `p50/p95` (`p50 = 50,88–120,61 ms`, `p95 < 131 ms`, `0%` lỗi).
+- **Docker, Proxy & Backup/Restore PostgreSQL 18.6 (Mục 7 & Mục 9)**: Đã thêm `UseForwardedHeaders`, `DataProtection:KeysPath`, `infrastructure/nginx/recipehub.conf`, `infrastructure/docker/docker-compose.backend.yml`, `database/seeds/Invoke-BackupRestoreDrill.ps1` và hoàn tất diễn tập `pg_dump` 18.6 (`32,35s`, `32,79 MB`) → `pg_restore` 18.6 (`3,95s`, khớp 100% cả 29 bảng & ~650.000 dòng, `restored_db_size = 188 MB`) cùng Rollback/Roll-forward container cổng `8080` (`Healthy`).
+- **Phần còn lại**: Chờ Khang & Linh hoàn thành Frontend + Jenkins/E2E để Khánh gộp thành bản Fullstack (Mục 6 & Mục 10) và triển khai lên AWS EC2 + HTTPS (Mục 8) khi có máy đích.
+
+Hãy bắt đầu bằng kiểm tra trạng thái mã nguồn/Git và đối chiếu các việc còn mở. Báo ngắn gọn việc đang xử lý, làm tiếp phần có thể thực hiện ngay, chỉ yêu cầu Khánh thao tác khi cần thông tin hoặc bằng chứng thực tế. Nêu rõ môi trường cho mọi lệnh và kết quả mong đợi.

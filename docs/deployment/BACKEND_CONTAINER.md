@@ -30,3 +30,9 @@ Build recipehub-api:local từ mã hiện tại thành công. Image ID4359cd51ac
 ## 2026-11-06 — Cập nhật container local tại8080
 
 Container cũ đã dừng, được giữ tên recipehub-api-backup để quay lui. Container recipehub-api-local mới dùng image4359cd51acf098a7e18c2056ce54b5abb7a8001ab54134fc807bc71cea5419eb, bind127.0.0.1:8080. Liveness/readiness/system/ingredients đều200. Restart xong readiness tiếp tục200. Runtime environment được tái sử dụng kín đáo từ container local trước đó. Chưa kiểm chứng auth/HTTPS hoặc tự khởi động cùng máy. Không áp dụng migration hoặc nhập dữ liệu trong bước này.
+
+## 2026-11-07 — Image `recipehub-api:d1bb66e` (ForwardedHeaders & DataProtection Persistence)
+
+- Bổ sung `UseForwardedHeaders` (`X-Forwarded-For`, `X-Forwarded-Proto`), `DataProtection:KeysPath`, `infrastructure/nginx/recipehub.conf` và `infrastructure/docker/docker-compose.backend.yml`.
+- Build image gắn đồng thời 2 tag `recipehub-api:local` và `recipehub-api:d1bb66e` (manifest `sha256:6f5cd2ba811c8f63eed3ed3abf641be1494bb5bc0f2d1d600f258a060aacde35`).
+- Kiểm chứng chốt chặn bảo mật Production: khi truyền `Jwt__Key` 53 byte (< 64 byte), container từ chối khởi động đúng thiết kế; khi truyền `Jwt__Key` >= 64 byte UTF-8 và `DataProtection__KeysPath=/tmp/dpkeys`, container `recipehub-api-local` lên `Healthy` cho cả `/health/live` và `/health/ready` trên database Cloud Neon `198,3 MB`.

@@ -43,3 +43,11 @@ Khang và Linh làm trên nhánh riêng, tạo pull request vào nhánh tích h�
 ## Kết quả kiểm thử cập nhật ngày2026-11-06
 
 Bộ đầy đủ hiện đạt36/36 với PostgreSQL18 Docker tạm,0 failed,0 skipped. Bao gồm importer/rollback, HTTP duyệt nguồn và quyền truy cập, cùng các luồng backend trước đó. Năm món development đang Draft/Pending, chưa có xác nhận duyệt nội dung hoặc quyền công khai. Mã cập nhật sau nhánh bàn giao đã push còn cần commit/push. Image local cần build lại để chứa importer/review mới.
+
+## Cập nhật bàn giao ngày 2026-11-07 (Commit `d1bb66e` & Hoàn tất Mục 1–5, 7, 9)
+
+- **Dữ liệu trên Cloud Neon (`recipehub_dev`)**: Đã nạp đủ **300 công thức món Việt** (`total_recipes = 301`, trong đó **23 món `Published`** phủ đủ 7 danh mục cho giao diện Public và **278 món `Draft / Pending`** làm hàng đợi duyệt cho trang Admin; `96` nguyên liệu chuẩn hóa; `18.400` lượt xem `RecipeViews` trong 30 ngày cho biểu đồ Admin Analytics).
+- **Kiểm thử tải lớn & Hiệu năng (`198,3 MB`)**: Đã nạp và đo kiểm thực tế trên Cloud Neon đạt `198,3 MB` (~650.000 dòng), xác nhận `EXPLAIN (ANALYZE, BUFFERS)` kích hoạt `BitmapAnd` + GIN `SearchVector` (`1,532 ms`) và `HashAggregate` Analytics (`9,970 ms`). Độ trễ HTTP API từ máy local tới Neon Singapore đạt `p50` từ `50,88 ms` đến `120,61 ms`, `p95` dưới `131 ms`, tỷ lệ lỗi `0%`.
+- **Docker, Proxy & Backup/Restore PostgreSQL 18.6**:
+  - Đã bổ sung `UseForwardedHeaders`, `DataProtection:KeysPath`, `infrastructure/nginx/recipehub.conf` và `infrastructure/docker/docker-compose.backend.yml`.
+  - Đã hoàn tất diễn tập `pg_dump` 18.6 (`32,35s`, `32,79 MB`) và `pg_restore` 18.6 (`3,95s`) vào container PostgreSQL 18.6 cách ly (`recipehub_restore_verify`), khớp 100% cả 29 bảng và ~650.000 dòng (`restored_db_size = 188 MB`), cùng diễn tập Rollback/Roll-forward container cổng `8080` (`Healthy`).
