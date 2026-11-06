@@ -1,0 +1,12 @@
+.git
+.local-dotnet
+.nuget
+**/bin
+**/obj
+**/TestResults
+**/node_modules
+.env
+.env.*
+**/secrets.json
+**/*.pem
+**/*.key

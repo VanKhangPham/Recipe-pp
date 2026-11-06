@@ -1,0 +1,76 @@
+@baseUrl = http://localhost:5194
+@accessToken = REPLACE_LOCALLY
+@recipeId = 00000000-0000-0000-0000-000000000000
+@ingredientId = 00000000-0000-0000-0000-000000000000
+
+### API process
+GET {{baseUrl}}/health/live
+
+### Database connection
+GET {{baseUrl}}/health/ready
+
+### OpenAPI (Development)
+GET {{baseUrl}}/openapi/v1.json
+
+### Ingredient catalog
+GET {{baseUrl}}/api/v1/ingredients?page=1&pageSize=20
+
+### Published recipes, search and sorting
+GET {{baseUrl}}/api/v1/recipes?q=soup&sort=newest&page=1&pageSize=20
+
+### Multiple ingredient filters use repeated query parameters
+GET {{baseUrl}}/api/v1/recipes?ingredientIds={{ingredientId}}&sort=cookingTime
+
+### Recipe details
+GET {{baseUrl}}/api/v1/recipes/{{recipeId}}
+
+### Personal recipe list
+GET {{baseUrl}}/api/v1/users/me/recipes?page=1&pageSize=20
+Authorization: Bearer {{accessToken}}
+
+### Create a draft (replace ingredientId with an existing catalog ID)
+POST {{baseUrl}}/api/v1/recipes
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Vegetable soup",
+  "description": "A simple vegetable soup.",
+  "servings": 2,
+  "prepMinutes": 5,
+  "cookMinutes": 15,
+  "difficulty": "Easy",
+  "status": "Draft",
+  "ingredients": [
+    { "ingredientId": "{{ingredientId}}", "quantity": 100, "unit": "g", "note": null, "position": 1 }
+  ],
+  "steps": [
+    { "position": 1, "instruction": "Cook until tender.", "durationMinutes": 15 }
+  ],
+  "categoryIds": [],
+  "tagIds": [],
+  "images": []
+}
+
+### Public reviews (published recipe required)
+GET {{baseUrl}}/api/v1/recipes/{{recipeId}}/reviews?page=1&pageSize=20
+
+### Ingredient recommendations
+GET {{baseUrl}}/api/v1/recommendations?ingredientIds={{ingredientId}}&limit=10
+
+### Admin users (Admin role required)
+GET {{baseUrl}}/api/v1/admin/users?page=1&pageSize=20
+Authorization: Bearer {{accessToken}}
+
+### Admin analytics
+GET {{baseUrl}}/api/v1/admin/analytics
+Authorization: Bearer {{accessToken}}
+
+### Ingredient details
+GET {{baseUrl}}/api/v1/ingredients/{{ingredientId}}
+
+### Đọc danh mục và tag
+GET {{baseUrl}}/api/v1/categories
+
+### Đọc tags
+GET {{baseUrl}}/api/v1/tags

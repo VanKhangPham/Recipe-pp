@@ -1,0 +1,27 @@
+services:
+  recipehub-api:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/backend.Dockerfile
+    image: recipehub-api:${IMAGE_TAG:-local}
+    container_name: recipehub-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file:
+      - ../../.env.backend.local
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      DataProtection__KeysPath: /var/lib/recipehub/dpkeys
+    volumes:
+      - recipehub_dpkeys:/var/lib/recipehub/dpkeys
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  recipehub_dpkeys:
