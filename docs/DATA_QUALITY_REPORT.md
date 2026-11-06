@@ -81,6 +81,89 @@ Bảng đối chiếu thực nghiệm giữa **Mốc 5 món dataset** và **Mố
 | Tổng dung lượng bảng `RecipeSteps` | 48 kB | 80 kB | Tăng +32 kB |
 | Tổng dung lượng bảng `Ingredients` | 40 kB | 40 kB | 33 bản ghi vẫn nằm gọn trong trang 8 KB ban đầu + 32 KB index |
 
+### Nghiệm thu duyệt nguồn, xuất bản và tìm kiếm Full-Text (lúc 23:55 – 00:03)
+
+Khánh đã kiểm chứng toàn bộ chu trình duyệt và xuất bản công khai trên `recipehub_dev`:
+1. **Duyệt nguồn Admin (`PATCH /api/v1/admin/dataset/30adf757-5662-4b45-9353-85d91aad2dd3/review`):**
+   - Kết quả `200 OK` (lúc 23:55:06): `datasetKey = trung-chien-hanh`, `status = Approved`, `sourceName = "Nhóm RecipeHub biên soạn và rà soát"`, `sourceUrl = null`, `licenseIdentifier = "CC-BY-4.0"`.
+2. **Xuất bản công thức (`PUT /api/v1/recipes/30adf757-5662-4b45-9353-85d91aad2dd3`):**
+   - Kết quả `200 OK` (lúc 23:58:31): chuyển `status = Published`, cập nhật mô tả riêng tiếng Việt, giữ đủ 4 nguyên liệu (`Trứng gà`, `Hành lá`, `Dầu ăn`, `Muối`), 2 bước nấu và danh mục `Trứng và đậu hũ`.
+3. **Tìm kiếm công khai (`GET /api/v1/recipes?Q=trứng`):**
+   - Kết quả `200 OK`: PostgreSQL Full-Text Search (`SearchVector`) trả về món **Trứng chiên hành** đã xuất bản; 19 món dataset còn lại giữ `Draft / Pending` làm hàng đợi duyệt cho màn hình Admin.
+
+### Kết quả mở rộng mốc 100 món và 300 món trên Cloud Neon (`recipehub_dev`) ngày 2026-11-07 (lúc 00:47 – 00:56)
+
+Khánh chạy nhập `data/samples/vietnamese_recipes.batch100.json` và `data/samples/vietnamese_recipes.batch300.json` trực tiếp lên Cloud Neon (`recipehub_dev`):
+- **Mốc 100 món**:
+  - Lượt 1: `Import completed: created=80, skipped=20.`
+  - Lượt 2 (kiểm tra idempotent): `Import completed: created=0, skipped=100.`
+- **Mốc 300 món**:
+  - Lượt 1: `Import completed: created=200, skipped=100.`
+  - Lượt 2 (kiểm tra idempotent): `Import completed: created=0, skipped=300.`
+
+Bảng đối chiếu thực nghiệm qua 4 mốc tăng trưởng (**5 món → 20 món → 100 món → 300 món dataset**) trên Cloud Neon (`recipehub_dev`):
+
+| Chỉ số đo | Mốc 5 món (6 recipes) | Mốc 20 món (21 recipes) | Mốc 100 món (101 recipes) | Mốc 300 món (301 recipes) | Nhận xét kỹ thuật |
+|---|---|---|---|---|---|
+| `RecipeDatasetEntries` (Tổng / `Approved`) | 5 / 0 | 20 / 0 | 100 / 1 | 300 / 1 (`trung-chien-hanh`) | Giữ nguyên trạng thái `Approved` và `Published` của món đã duyệt khi nạp bù |
+| `Recipes` (`Published` / `Draft` / Tổng) | 1 / 5 / 6 | 1 / 20 / 21 | 2 / 99 / 101 | 2 / 299 / 301 | Không trùng `Slug` hoặc `DatasetKey` |
+| `Ingredients` (nguyên liệu gốc) | 11 | 33 | 84 | 96 | 96 nguyên liệu chuẩn hóa dùng chung cho 1.785 liên kết (~18,59 lần/nguyên liệu) |
+| `RecipeIngredients` (liên kết) | 24 | 113 | 585 | 1.785 | 1.782 liên kết từ dataset + 3 từ món test ban đầu |
+| `RecipeSteps` (bước nấu) | 12 | 53 | 214 | 614 | 612 bước từ dataset + 2 từ món test ban đầu |
+| `Categories` / `RecipeCategories` | 4 / 5 | 7 / 20 | 7 / 100 | 7 / 300 | Phủ đủ 7 danh mục món Việt chuẩn |
+| Tổng dung lượng toàn DB (`recipehub_dev`) | ~10,16 MB | ~10,5 MB | 11 MB | 12 MB | Tăng ổn định theo số lượng bản ghi và trang index trên Cloud Neon |
+| Tổng dung lượng bảng `Recipes` | 120 kB | 152 kB | 264 kB | 576 kB | Bao gồm GIN `SearchVector` và B-tree indexes cho 301 công thức |
+| Tổng dung lượng bảng `RecipeIngredients` | 56 kB | 88 kB | 232 kB | 536 kB | 1.785 liên kết nguyên liệu có composite PK/FK indexes |
+| Tổng dung lượng bảng `RecipeSteps` | 48 kB | 80 kB | 104 kB | 272 kB | 614 bước nấu có thứ tự |
+| Tổng dung lượng bảng `RecipeDatasetEntries` | 48 kB | 48 kB | 88 kB | 160 kB | 300 bản ghi metadata & SHA-256 `ContentHash` |
+| Tổng dung lượng bảng `Ingredients` | 40 kB | 40 kB | 40 kB | 40 kB | 96 nguyên liệu chuẩn hóa vẫn nằm gọn trong 1 trang heap 8 KB + 32 KB index |
+
+### Kết quả kiểm thử dữ liệu lớn 198,3 MB và `EXPLAIN (ANALYZE, BUFFERS)` trên Cloud Neon (`recipehub_dev`) ngày 2026-11-07 (lúc 01:10 – 01:13)
+
+Khánh đã chạy script [`database/scripts/seed-cloud-load-200mb.sql`](file:///D:/ST23D/2026-2027/Dev-ops/Buoi15/Recipe-pp/database/scripts/seed-cloud-load-200mb.sql) và [`database/scripts/verify-performance-200mb.sql`](file:///D:/ST23D/2026-2027/Dev-ops/Buoi15/Recipe-pp/database/scripts/verify-performance-200mb.sql) trực tiếp trên Cloud Neon (`recipehub_dev`, tab `Script-6`):
+- **Tổng dung lượng database (`recipehub_dev`)**: **`198 MB` (`198,3 MB`)** — nằm chính giữa ngưỡng mục tiêu **180–220 MB**.
+- **Số lượng công thức công khai (`Published` / `Approved`)**: **23 công thức `Published`** (`22` công thức dataset `Approved` + `1` công thức test ban đầu), giữ **278 công thức `Draft / Pending`** làm hàng đợi duyệt cho trang Admin.
+- **Thiết kế cách ly UI**: Toàn bộ dữ liệu tải lớn được gắn với duy nhất 1 tài khoản chịu tải chuyên biệt (`perf-load@recipehub.local`, UUID `11111111-2222-4333-8444-555555555555`), giúp giữ sạch 100% danh sách món ăn công khai, bình luận công khai và dữ liệu cá nhân của Khánh / Admin khi gộp code Fullstack.
+
+#### 1. Thống kê Top 10 bảng lớn nhất ở mốc `198,3 MB` (ảnh DBeaver lúc 01:12:52)
+
+| Hạng | Tên bảng (`table_name`) | Số dòng (`approx_rows`) | Dung lượng bảng (`table_size`) | Dung lượng index (`index_size`) | Tổng dung lượng (`total_size`) |
+|---|---|---|---|---|---|
+| 1 | `AuditLogs` | 575.004 | 132 MB | 34 MB | **166 MB** |
+| 2 | `ShoppingListItems` | 50.001 | 10 MB | 6.408 kB | **17 MB** |
+| 3 | `RecipeViews` | 18.400 | 1.520 kB | 2.040 kB | **3.592 kB** |
+| 4 | `Recipes` | 301 | 192 kB | 360 kB | **584 kB** |
+| 5 | `ShoppingLists` | 2.501 | 312 kB | 200 kB | **544 kB** |
+| 6 | `RecipeIngredients` | 1.783 | 168 kB | 336 kB | **536 kB** |
+| 7 | `RecipeSteps` | 613 | 136 kB | 104 kB | **272 kB** |
+| 8 | `RecipeDatasetEntries` | 300 | 64 kB | 72 kB | **168 kB** |
+| 9 | `RecipeCategories` | 300 | 24 kB | 80 kB | **128 kB** |
+| 10 | `RefreshTokens` | 13 | 8.192 bytes | 80 kB | **88 kB** |
+
+*(Tổng số bản ghi trên toàn database đạt **~649.900 dòng**, `ANALYZE` toàn bộ bảng hoàn tất trong `0,417 giây`).*
+
+#### 2. Đối chiếu Query Plan (`EXPLAIN (ANALYZE, BUFFERS)`) giữa Baseline (6 món / 10 MB) và Tải lớn (301 món / 198,3 MB)
+
+| Truy vấn | Mốc Baseline (6 recipes, 1 Published, ~10,16 MB) | Mốc Tải lớn (301 recipes, 23 Published, 198,3 MB) | Phân tích kỹ thuật |
+|---|---|---|---|
+| **Full-Text Search** (`Status = 'Published' AND SearchVector @@ websearch_to_tsquery('simple', 'trứng')`) | `Index Scan` trên `IX_Recipes_Status_CreatedAt_Id` + `Filter` (0 dòng trả về, `0,036 ms`, `shared hit=2`) | **`Bitmap Heap Scan`** kết hợp **`BitmapAnd`** giữa B-tree `Status` và **GIN Index `SearchVector`** (`rows=5`, `Heap Blocks: exact=4`, `Buffers: shared hit=8 read=2`, **`actual time=1,532 ms`**) | Khi bảng `Recipes` tăng lên 301 dòng (24 trang heap), bộ tối ưu PostgreSQL 18 tự động kích hoạt **GIN Index (`SearchVector`)** kết hợp `BitmapAnd`, chỉ đọc đúng 4 trang heap chứa 5 món trứng thay vì quét toàn bảng |
+| **Admin Analytics 30 ngày** (`RecipeViews` JOIN `Recipes` GROUP BY `Id, Title` ORDER BY `count(*) DESC LIMIT 10`) | Chưa có dữ liệu `RecipeViews` (0 dòng) | `Hash Join` (`18.400 dòng`) → `HashAggregate` (`23 nhóm`, `Memory: 48 kB`) → `top-N heapsort` (`Memory: 26 kB`), `Buffers: shared hit=214`, **`actual time=9,970 ms`** | Gom nhóm 18.400 lượt xem trong 30 ngày hoàn toàn trong bộ nhớ đệm (`shared hit=214`, 0 disk read) dưới **10 ms**, không cần thêm index phụ |
+
+#### 3. Kết quả đo độ trễ HTTP API (`Cold / Warm p50 / Warm p95`) trên DB `198,3 MB` (lúc 01:17)
+
+Khánh chạy [`database/seeds/Measure-ApiPerformance.ps1`](file:///D:/ST23D/2026-2027/Dev-ops/Buoi15/Recipe-pp/database/seeds/Measure-ApiPerformance.ps1) từ máy local (`https://localhost:7082`, .NET 10 Kestrel) kết nối trực tiếp tới Cloud Neon Singapore (`recipehub_dev` – `198,3 MB`), mỗi endpoint thực hiện 1 lượt Cold + 20 lượt Warm liên tiếp:
+
+| Endpoint | Cold (`ms`) | Warm Min (`ms`) | **Warm p50 (`ms`)** | **Warm p95 (`ms`)** | Warm Avg (`ms`) | Warm Max (`ms`) | Lỗi / Số lượt |
+|---|---|---|---|---|---|---|---|
+| `GET /api/v1/recipes (Page 1, 20 items)` | `3050,34` | `104,16` | **`120,61`** | **`130,60`** | `120,95` | `182,95` | `0 / 20` |
+| `GET /api/v1/recipes?Q=trứng (Full-Text)` | `126,76` | `92,48` | **`97,15`** | **`107,28`** | `97,34` | `110,62` | `0 / 20` |
+| `GET /api/v1/categories` | `70,53` | `47,70` | **`50,88`** | **`55,16`** | `51,46` | `56,37` | `0 / 20` |
+| `GET /api/v1/ingredients` | `144,02` | `86,09` | **`92,16`** | **`100,68`** | `92,53` | `102,02` | `0 / 20` |
+
+**Nhận xét hiệu năng HTTP**:
+- Lượt `Cold` đầu tiên của `GET /api/v1/recipes` (`3050,34 ms`) bao gồm chi phí khởi tạo kết nối TLS 1.3 + Npgsql connection pool từ Việt Nam sang AWS ap-southeast-1 (Singapore) và biên dịch biểu thức EF Core lần đầu.
+- Khi connection pool đã ấm (`Warm`), toàn bộ 4 endpoint đọc dữ liệu trên DB `198,3 MB` đều đạt **`p50` từ `50,88 ms` đến `120,61 ms`** và **`p95` dưới `131 ms`** (trong đó ~40–45 ms là độ trễ mạng khứ hồi Việt Nam ↔ Singapore), tỷ lệ lỗi **0%**.
+
 ## Công việc còn lại
 
 Đã xác nhận thủ công qua Swagger HTTPS: GET users/me/recipes trả200, totalCount5, tất cả là Draft của Khánh. GET chi tiết Cơm chiên trứng khi chủ món đã đăng nhập trả đúng summary,5 nguyên liệu và2 bước. Gọi cùng ID với khách trả404. Đây là bằng chứng đọc/phân quyền của lô mẫu.

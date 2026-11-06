@@ -371,3 +371,40 @@ Trạng thái: **Completed** cho milestone Authentication cơ bản có kiểm t
 - Khánh chạy `--apply` với `data/samples/vietnamese_recipes.batch20.json`: lượt đầu trả `Import completed: created=15, skipped=5.`, chạy lại lần hai trả `Import completed: created=0, skipped=20.`.
 - Ảnh DBeaver lúc 16:53:54 và 16:56:11 xác nhận trên `recipehub_dev`: `total_dataset_entries = 20`, `pending_entries = 20`, `total_recipes = 21`, `total_ingredients = 33`, `ingredient_links = 113`, `total_steps = 53`, `total_categories = 7`, `category_links = 20`.
 - Dung lượng các bảng chính sau mốc 20 món: `Recipes = 152 kB` (tăng từ 120 kB), `RecipeIngredients = 88 kB` (tăng từ 56 kB), `RecipeSteps = 80 kB` (tăng từ 48 kB), `Ingredients = 40 kB` (giữ nguyên 40 kB). Chi tiết lưu trong `docs/DATA_QUALITY_REPORT.md`.
+
+## 2026-11-06 — Commit/push `3c78330` và nghiệm thu chu trình duyệt → xuất bản → tìm kiếm công khai
+
+- Khánh chạy bộ tests, commit và push thành công lên `origin/khanh_backend` (commit `3c78330`: `"Add Swagger UI, dataset importer, review workflow, alias registry, and batch-20 recipes"`).
+- Duyệt nguồn món **Trứng chiên hành** (`30adf757-5662-4b45-9353-85d91aad2dd3`, `trung-chien-hanh`) qua Swagger `PATCH /api/v1/admin/dataset/30adf757-5662-4b45-9353-85d91aad2dd3/review` đạt `200 OK` (`status = Approved`, `sourceName = "Nhóm RecipeHub biên soạn và rà soát"`, `sourceUrl = null`, `licenseIdentifier = "CC-BY-4.0"`).
+- Xuất bản món **Trứng chiên hành** qua `PUT /api/v1/recipes/30adf757-5662-4b45-9353-85d91aad2dd3` đạt `200 OK` (`status = Published`, giữ đủ 4 nguyên liệu, 2 bước nấu, danh mục `Trứng và đậu hũ`).
+- Kiểm chứng `GET /api/v1/recipes?Q=trứng` trên Swagger trả về món **Trứng chiên hành** qua PostgreSQL Full-Text Search; 19 món dataset còn lại giữ `Draft / Pending` làm hàng đợi duyệt cho Admin.
+
+## 2026-11-07 — Mở rộng và xác minh mốc 100 món trên `recipehub_dev`
+
+- Tạo `data/samples/vietnamese_recipes.batch100.json` gồm 100 món Việt Nam (giữ nguyên 20 món đã nhập + bổ sung 80 món mới phủ đủ 7 danh mục trong `DATASET_PLAN.md`). Dry-run C# và `Test-RecipeDataset.ps1` đều đạt `Dry-run passed: 100 drafts`.
+- Khánh chạy `--apply` vào `recipehub_dev`: lượt 1 trả `created=80, skipped=20`, lượt 2 trả `created=0, skipped=100` (giữ nguyên trạng thái `Published / Approved` của `trung-chien-hanh`).
+- Ảnh DBeaver lúc 00:47:19 và 00:47:37 xác nhận: `total_recipes = 101` (`published_recipes = 2`, `draft_recipes = 99`), `total_dataset_entries = 100` (`approved_dataset_entries = 1`), `total_ingredients = 84`, `ingredient_links = 585`, `total_steps = 214`, `total_categories = 7`, `category_links = 100`.
+- Dung lượng thực tế ở mốc 100 món: `db_total_size = 11 MB`, `Recipes = 264 kB`, `RecipeIngredients = 232 kB`, `RecipeSteps = 104 kB`, `RecipeDatasetEntries = 88 kB`, `Ingredients = 40 kB`.
+
+## 2026-11-07 — Mở rộng và xác minh mốc 300 món trên Cloud Neon (`recipehub_dev`)
+
+- Tạo `data/samples/vietnamese_recipes.batch300.json` gồm 300 món Việt Nam (giữ nguyên 100 món đã nhập + bổ sung 200 món mới phủ đủ 7 danh mục chuẩn). Dry-run C# và `Test-RecipeDataset.ps1` đều đạt `Dry-run passed: 300 drafts`.
+- Khánh chạy `--apply` vào `recipehub_dev` trên Cloud Neon: lượt 1 trả `created=200, skipped=100`, lượt 2 trả `created=0, skipped=300`.
+- Ảnh DBeaver lúc 00:56:38 và 00:56:57 xác nhận: `total_recipes = 301` (`published_recipes = 2`, `draft_recipes = 299`), `total_dataset_entries = 300` (`approved_dataset_entries = 1`), `total_ingredients = 96`, `ingredient_links = 1785`, `total_steps = 614`, `total_categories = 7`, `category_links = 300`.
+- Dung lượng thực tế ở mốc 300 món trên Cloud Neon: `db_total_size = 12 MB`, `Recipes = 576 kB`, `RecipeIngredients = 536 kB`, `RecipeSteps = 272 kB`, `RecipeDatasetEntries = 160 kB`, `Ingredients = 40 kB`.
+
+## 2026-11-07 — Nạp tải lớn 198,3 MB trên Cloud Neon (`recipehub_dev`) và đo `EXPLAIN (ANALYZE, BUFFERS)`
+
+- Thêm `database/scripts/seed-cloud-load-200mb.sql`, `database/scripts/verify-performance-200mb.sql` và `database/seeds/Measure-ApiPerformance.ps1`.
+- Khánh chạy `seed-cloud-load-200mb.sql` trên `recipehub_dev` (Cloud Neon, tab `Script-6`) hoàn tất trong 10s:
+  - Tổng dung lượng `recipehub_dev` đạt **`198 MB` (`198,3 MB`)** (nằm giữa mục tiêu 180–220 MB).
+  - Duyệt và xuất bản thêm các món đại diện (`published_recipes = 23`, `approved_dataset_entries = 22`, giữ `278` món `Draft/Pending`).
+  - Tổng số dòng các bảng lớn: `AuditLogs = 575.004` (`166 MB`), `ShoppingListItems = 50.001` (`17 MB`), `RecipeViews = 18.400` (`3.592 kB`), `Recipes = 301` (`584 kB`), `ShoppingLists = 2.501` (`544 kB`), `RecipeIngredients = 1.783` (`536 kB`).
+- Kết quả `EXPLAIN (ANALYZE, BUFFERS)` ở mốc `198,3 MB`:
+  - Tìm kiếm Full-Text `"trứng"` tự động kích hoạt `BitmapAnd` + GIN Index `SearchVector`, chỉ đọc `Heap Blocks: exact=4` (`shared hit=8 read=2`), trả về 5 món trong **`1,532 ms`**.
+  - Thống kê Admin Analytics 30 ngày trên 18.400 lượt xem `RecipeViews` chạy `Hash Join` + `HashAggregate` (`shared hit=214`) hoàn tất trong **`9,970 ms`**.
+- Kết quả đo HTTP API `Measure-ApiPerformance.ps1` (20 lượt Warm/endpoint từ `https://localhost:7082` tới Cloud Neon Singapore `198,3 MB`):
+  - `GET /api/v1/recipes (Page 1, 20 items)`: Cold `3050,34 ms`, Warm `p50 = 120,61 ms`, `p95 = 130,60 ms`, `Avg = 120,95 ms`, `Errors = 0/20`.
+  - `GET /api/v1/recipes?Q=trứng`: Cold `126,76 ms`, Warm `p50 = 97,15 ms`, `p95 = 107,28 ms`, `Avg = 97,34 ms`, `Errors = 0/20`.
+  - `GET /api/v1/categories`: Cold `70,53 ms`, Warm `p50 = 50,88 ms`, `p95 = 55,16 ms`, `Avg = 51,46 ms`, `Errors = 0/20`.
+  - `GET /api/v1/ingredients`: Cold `144,02 ms`, Warm `p50 = 92,16 ms`, `p95 = 100,68 ms`, `Avg = 92,53 ms`, `Errors = 0/20`.
