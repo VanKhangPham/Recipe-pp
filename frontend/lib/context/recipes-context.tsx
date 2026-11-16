@@ -20,6 +20,7 @@ const RecipesContext = React.createContext<RecipesContextType | undefined>(undef
 
 export function RecipesProvider({ children }: { children: React.ReactNode }) {
   const [userRecipes, setUserRecipes] = React.useState<Recipe[]>([]);
+  const [cloudRecipes, setCloudRecipes] = React.useState<Recipe[]>([]);
 
   React.useEffect(() => {
     try {
@@ -28,11 +29,31 @@ export function RecipesProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.warn("[RecipesContext] Load error", e);
     }
+
+    recipeService
+      .fetchCloudNeonRecipes()
+      .then((liveRecipes) => {
+        if (liveRecipes && liveRecipes.length > 0) {
+          setCloudRecipes(liveRecipes);
+        }
+      })
+      .catch((err) => {
+        console.warn("[RecipesContext] Cloud Neon fetch fallback to presets", err);
+      });
   }, []);
 
   const allRecipes = React.useMemo(() => {
-    return [...userRecipes, ...MASTER_RECIPES];
-  }, [userRecipes]);
+    const seen = new Set<string>();
+    const merged: Recipe[] = [];
+    for (const item of [...userRecipes, ...cloudRecipes, ...MASTER_RECIPES]) {
+      const key = item.title.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(item);
+      }
+    }
+    return merged;
+  }, [userRecipes, cloudRecipes]);
 
   const getRecipeById = (id: string): Recipe | undefined => {
     return allRecipes.find((r) => r.id === id);

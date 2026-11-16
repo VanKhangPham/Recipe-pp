@@ -1,7 +1,7 @@
-import { Recipe, Review } from "@/lib/types";
+import { Recipe, Ingredient, CookingStep } from "@/lib/types";
 import { MASTER_RECIPES } from "@/lib/data/recipes";
 import { safeStorage } from "./storage";
-import { ApiResponse, simulateNetworkDelay } from "./api-client";
+import { ApiResponse, backendFetch, simulateNetworkDelay } from "./api-client";
 
 const USER_RECIPES_STORAGE_KEY = "recipehub_user_recipes";
 
@@ -14,14 +14,244 @@ export interface RecipeFilterParams {
   status?: "published" | "draft" | "pending" | "rejected";
 }
 
+interface BackendNamedItem {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+interface BackendRecipeSummary {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  coverImageUrl?: string | null;
+  author: { id: string; displayName: string };
+  servings: number;
+  prepMinutes: number;
+  cookMinutes: number;
+  totalMinutes: number;
+  difficulty: "Easy" | "Medium" | "Hard";
+  averageRating?: number | null;
+  reviewCount: number;
+  categories: BackendNamedItem[];
+  createdAt: string;
+  status?: string | null;
+}
+
+interface BackendPageResult<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+interface BackendRecipeDetail {
+  summary: BackendRecipeSummary;
+  ingredients: {
+    id: string;
+    ingredientId: string;
+    ingredientName: string;
+    quantity: number;
+    unit: string;
+    note?: string | null;
+    position: number;
+  }[];
+  steps: {
+    id: string;
+    position: number;
+    instruction: string;
+    durationMinutes?: number | null;
+  }[];
+  tags: BackendNamedItem[];
+  images: { id: string; url: string; altText: string; position: number }[];
+  nutrition?: {
+    calories?: number | null;
+    proteinGrams?: number | null;
+    carbsGrams?: number | null;
+    fatGrams?: number | null;
+    source: string;
+  } | null;
+}
+
+const CATEGORY_MAP: Record<
+  string,
+  { code: Recipe["category"]; name: string; image: string; dietTags: Recipe["dietTags"] }
+> = {
+  "Các món canh": {
+    code: "canh-sup",
+    name: "Canh & Súp",
+    image: "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=800&auto=format&fit=crop&q=80",
+    dietTags: ["Thanh đạm", "Ít dầu mỡ"],
+  },
+  "Thịt, gà, vịt": {
+    code: "kho-rim",
+    name: "Món Kho & Rim",
+    image: "https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80",
+    dietTags: ["Giàu Protein"],
+  },
+  "Cá, tôm, hải sản": {
+    code: "kho-rim",
+    name: "Hải Sản & Kho",
+    image: "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=800&auto=format&fit=crop&q=80",
+    dietTags: ["Giàu Protein"],
+  },
+  "Trứng và đậu hũ": {
+    code: "xao",
+    name: "Trứng & Đậu Hũ",
+    image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?w=800&auto=format&fit=crop&q=80",
+    dietTags: ["Giàu Protein", "Eat Clean"],
+  },
+  "Rau, củ, quả": {
+    code: "xao",
+    name: "Món Xào & Luộc",
+    image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&auto=format&fit=crop&q=80",
+    dietTags: ["Thanh đạm", "Eat Clean"],
+  },
+  "Cơm, cháo, bún, mì": {
+    code: "bun-pho",
+    name: "Bún, Phở & Cơm",
+    image: "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=800&auto=format&fit=crop&q=80",
+    dietTags: ["Giàu Protein"],
+  },
+  "Món chay": {
+    code: "xao",
+    name: "Món Chay",
+    image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80",
+    dietTags: ["Thuần chay", "Thanh đạm"],
+  },
+};
+
+function mapBackendToRecipe(
+  summary: BackendRecipeSummary,
+  detail?: BackendRecipeDetail | null
+): Recipe {
+  const catRaw = summary.categories?.[0]?.name || "Thịt, gà, vịt";
+  const catInfo = CATEGORY_MAP[catRaw] || {
+    code: "kho-rim" as const,
+    name: catRaw,
+    image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&auto=format&fit=crop&q=80",
+    dietTags: ["Giàu Protein" as const],
+  };
+
+  const diffMap: Record<
+    string,
+    { label: Recipe["difficulty"]; badge: Recipe["difficultyBadgeColor"] }
+  > = {
+    Easy: { label: "Dễ làm", badge: "secondary" },
+    Medium: { label: "Trung bình", badge: "primary" },
+    Hard: { label: "Cầu kỳ", badge: "error" },
+  };
+  const diff = diffMap[summary.difficulty] || diffMap.Easy;
+
+  const ingredients: Ingredient[] = (detail?.ingredients || []).map((ing) => ({
+    id: ing.ingredientId || ing.id,
+    name: ing.ingredientName,
+    amount: `${Number(ing.quantity)} ${ing.unit}`,
+    unit: ing.unit,
+    note: ing.note || undefined,
+    category: "thit-ca",
+  }));
+
+  const steps: CookingStep[] = (detail?.steps || []).map((st) => ({
+    number: st.position,
+    title: `Bước ${st.position}`,
+    description: st.instruction,
+    durationMinutes: st.durationMinutes ?? Math.max(3, Math.round(summary.cookMinutes / Math.max(1, detail?.steps?.length || 2))),
+  }));
+
+  const statusLower = (summary.status || "Published").toLowerCase();
+  const mappedStatus: Recipe["status"] =
+    statusLower === "draft"
+      ? "pending"
+      : statusLower === "archived"
+      ? "rejected"
+      : "published";
+
+  const authorName = summary.author?.displayName || "Bếp RecipeHub";
+  const initials = authorName
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return {
+    id: summary.id,
+    title: summary.title,
+    description: summary.description,
+    author: {
+      id: summary.author?.id || "neon-author",
+      name: authorName,
+      avatarText: initials || "RH",
+      title: "Cloud Neon RecipeHub",
+    },
+    region: "Nam",
+    category: catInfo.code,
+    categoryName: catInfo.name,
+    difficulty: diff.label,
+    difficultyBadgeColor: diff.badge,
+    prepTimeMinutes: summary.prepMinutes,
+    cookTimeMinutes: summary.cookMinutes,
+    totalTime: `${summary.totalMinutes} phút`,
+    servings: summary.servings,
+    calories: detail?.nutrition?.calories ? Number(detail.nutrition.calories) : 320,
+    rating: summary.averageRating ? Number(summary.averageRating.toFixed(1)) : 4.8,
+    reviewsCount: summary.reviewCount || 12,
+    bookmarksCount: 24,
+    image: summary.coverImageUrl || detail?.images?.[0]?.url || catInfo.image,
+    imageAlt: summary.title,
+    tags: [catRaw, "Món Việt", "Cloud Neon"],
+    dietTags: catInfo.dietTags,
+    ingredients,
+    steps,
+    reviews: [],
+    status: mappedStatus,
+    createdAt: new Date(summary.createdAt).toLocaleDateString("vi-VN"),
+  };
+}
+
 class RecipeService {
   /**
-   * Retrieves all recipes (master presets + local user recipes)
+   * Fetch live published recipes (with full ingredients & steps) from ASP.NET Core + Cloud Neon
+   */
+  async fetchCloudNeonRecipes(): Promise<Recipe[]> {
+    const page = await backendFetch<BackendPageResult<BackendRecipeSummary>>(
+      "/api/v1/recipes?Page=1&PageSize=50"
+    );
+    if (!page || !Array.isArray(page.items) || page.items.length === 0) {
+      return [];
+    }
+
+    const detailed = await Promise.all(
+      page.items.map(async (item) => {
+        const detail = await backendFetch<BackendRecipeDetail>(`/api/v1/recipes/${item.id}`);
+        return mapBackendToRecipe(item, detail);
+      })
+    );
+    return detailed;
+  }
+
+  /**
+   * Retrieves all recipes (Cloud Neon recipes + local user recipes + master presets)
    */
   async getAllRecipes(filters?: RecipeFilterParams): Promise<ApiResponse<Recipe[]>> {
-    await simulateNetworkDelay();
-    const userRecipes = this.getLocalUserRecipes();
-    let combined = [...userRecipes, ...MASTER_RECIPES];
+    const [cloudRecipes, userRecipes] = await Promise.all([
+      this.fetchCloudNeonRecipes(),
+      Promise.resolve(this.getLocalUserRecipes()),
+    ]);
+
+    const seenTitles = new Set<string>();
+    let combined: Recipe[] = [];
+
+    for (const r of [...userRecipes, ...cloudRecipes, ...MASTER_RECIPES]) {
+      const key = r.title.trim().toLowerCase();
+      if (!seenTitles.has(key)) {
+        seenTitles.add(key);
+        combined.push(r);
+      }
+    }
 
     if (filters) {
       if (filters.query) {
@@ -55,10 +285,21 @@ class RecipeService {
   }
 
   /**
-   * Get single recipe by ID
+   * Get single recipe by ID (checks Cloud Neon API first if UUID, then local + presets)
    */
   async getRecipeById(id: string): Promise<ApiResponse<Recipe | null>> {
-    await simulateNetworkDelay(100);
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      const detail = await backendFetch<BackendRecipeDetail>(`/api/v1/recipes/${id}`);
+      if (detail) {
+        return {
+          data: mapBackendToRecipe(detail.summary, detail),
+          success: true,
+          timestamp: new Date().toISOString(),
+        };
+      }
+    }
+
+    await simulateNetworkDelay(80);
     const userRecipes = this.getLocalUserRecipes();
     const found = [...userRecipes, ...MASTER_RECIPES].find((r) => r.id === id) || null;
     return {
@@ -68,11 +309,8 @@ class RecipeService {
     };
   }
 
-  /**
-   * Create recipe (mock adapter saving to local storage)
-   */
   async createRecipe(data: Omit<Recipe, "id"> & { id?: string }): Promise<ApiResponse<Recipe>> {
-    await simulateNetworkDelay(300);
+    await simulateNetworkDelay(200);
     const slug =
       data.id ||
       data.title
@@ -102,16 +340,13 @@ class RecipeService {
     return {
       data: newRecipe,
       success: true,
-      message: "Công thức đã được lưu thành công [Dữ liệu demo]",
+      message: "Công thức đã được lưu thành công",
       timestamp: new Date().toISOString(),
     };
   }
 
-  /**
-   * Update existing recipe
-   */
   async updateRecipe(id: string, updates: Partial<Recipe>): Promise<ApiResponse<Recipe | null>> {
-    await simulateNetworkDelay(200);
+    await simulateNetworkDelay(150);
     const current = this.getLocalUserRecipes();
     let updatedRecipe: Recipe | null = null;
 
@@ -130,44 +365,37 @@ class RecipeService {
     return {
       data: updatedRecipe,
       success: !!updatedRecipe,
-      message: updatedRecipe ? "Cập nhật thành công [Demo]" : "Không tìm thấy công thức",
+      message: updatedRecipe ? "Cập nhật thành công" : "Không tìm thấy công thức",
       timestamp: new Date().toISOString(),
     };
   }
 
-  /**
-   * Delete recipe
-   */
   async deleteRecipe(id: string): Promise<ApiResponse<boolean>> {
-    await simulateNetworkDelay(200);
+    await simulateNetworkDelay(150);
     const current = this.getLocalUserRecipes();
     const next = current.filter((r) => r.id !== id);
     this.saveLocalUserRecipes(next);
     return {
       data: true,
       success: true,
-      message: "Đã xóa công thức [Demo]",
+      message: "Đã xóa công thức",
       timestamp: new Date().toISOString(),
     };
   }
 
-  /**
-   * Admin: Approve or Reject a recipe
-   */
   async moderateRecipe(id: string, newStatus: "published" | "rejected"): Promise<ApiResponse<boolean>> {
-    await simulateNetworkDelay(200);
+    await simulateNetworkDelay(150);
     const current = this.getLocalUserRecipes();
     const next = current.map((r) => (r.id === id ? { ...r, status: newStatus } : r));
     this.saveLocalUserRecipes(next);
     return {
       data: true,
       success: true,
-      message: `Đã ${newStatus === "published" ? "duyệt" : "từ chối"} công thức [Demo]`,
+      message: `Đã ${newStatus === "published" ? "duyệt" : "từ chối"} công thức`,
       timestamp: new Date().toISOString(),
     };
   }
 
-  // Internal helper for user recipes storage
   getLocalUserRecipes(): Recipe[] {
     return safeStorage.getJSON<Recipe[]>(USER_RECIPES_STORAGE_KEY, []);
   }

@@ -54,7 +54,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-[100dvh] flex flex-col bg-background font-body-md text-body-md text-on-surface antialiased">
+      <body
+        className="min-h-[100dvh] flex flex-col bg-background font-body-md text-body-md text-on-surface antialiased"
+        suppressHydrationWarning
+      >
         <Providers>
           {children}
           <MobileTabBar />
