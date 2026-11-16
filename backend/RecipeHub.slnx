@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="RecipeHub.Api/RecipeHub.Api.csproj" />
+  <Project Path="RecipeHub.Application/RecipeHub.Application.csproj" />
+  <Project Path="RecipeHub.Domain/RecipeHub.Domain.csproj" />
+  <Project Path="RecipeHub.Infrastructure/RecipeHub.Infrastructure.csproj" />
+  <Project Path="RecipeHub.Tests/RecipeHub.Tests.csproj" />
+</Solution>

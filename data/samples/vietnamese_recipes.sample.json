@@ -1,0 +1,218 @@
+[
+  {
+    "datasetKey": "trung-chien-hanh",
+    "title": "Trứng chiên hành",
+    "category": "Trứng và đậu hũ",
+    "servings": 2,
+    "prepMinutes": 5,
+    "cookMinutes": 6,
+    "status": "Draft",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Trứng gà",
+        "quantity": 3,
+        "unit": "piece"
+      },
+      {
+        "name": "Hành lá",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 1,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Rửa hành lá, thái nhỏ. Đập trứng vào bát rồi đánh đều với hành và muối.",
+      "Làm nóng dầu trong chảo, đổ trứng vào và dàn đều. Khi mặt dưới se lại, lật trứng và tiếp tục nấu cho tới khi cả hai mặt chín."
+    ]
+  },
+  {
+    "datasetKey": "canh-ca-chua-trung",
+    "title": "Canh cà chua trứng",
+    "category": "Các món canh",
+    "servings": 2,
+    "prepMinutes": 5,
+    "cookMinutes": 12,
+    "status": "Draft",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Cà chua",
+        "quantity": 180,
+        "unit": "g"
+      },
+      {
+        "name": "Trứng gà",
+        "quantity": 2,
+        "unit": "piece"
+      },
+      {
+        "name": "Nước",
+        "quantity": 500,
+        "unit": "ml"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 5,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Rửa sạch cà chua, bổ múi cau. Đập trứng vào bát và đánh tan.",
+      "Xào cà chua với dầu đến khi mềm rồi thêm nước và muối. Khi nước sôi, rót trứng thành dòng nhỏ và khuấy nhẹ. Đun đến khi trứng chín."
+    ]
+  },
+  {
+    "datasetKey": "rau-muong-xao-toi",
+    "title": "Rau muống xào tỏi",
+    "category": "Rau, củ, quả",
+    "servings": 2,
+    "prepMinutes": 10,
+    "cookMinutes": 6,
+    "status": "Draft",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Rau muống",
+        "quantity": 300,
+        "unit": "g"
+      },
+      {
+        "name": "Tỏi",
+        "quantity": 8,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Nhặt rau, bỏ phần già, rửa sạch rồi cắt khúc. Bóc vỏ và đập dập tỏi.",
+      "Làm nóng dầu, đảo tỏi đến khi thơm. Cho phần cọng rau vào trước, tiếp theo cho lá và muối. Đảo tới khi rau chín vừa ăn."
+    ]
+  },
+  {
+    "datasetKey": "dau-hu-sot-ca-chua",
+    "title": "Đậu hũ sốt cà chua",
+    "category": "Trứng và đậu hũ",
+    "servings": 2,
+    "prepMinutes": 8,
+    "cookMinutes": 15,
+    "status": "Draft",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Đậu hũ",
+        "quantity": 300,
+        "unit": "g"
+      },
+      {
+        "name": "Cà chua",
+        "quantity": 200,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "name": "Nước",
+        "quantity": 60,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Để đậu ráo nước rồi cắt miếng vừa ăn. Rửa cà chua và thái nhỏ.",
+      "Áp chảo đậu với dầu rồi gắp ra. Cho cà chua vào chảo, thêm nước và muối, nấu tới khi thành sốt.",
+      "Cho đậu trở lại chảo. Lật nhẹ để miếng đậu phủ đều sốt rồi đun nhỏ lửa tới khi nóng đều."
+    ]
+  },
+  {
+    "datasetKey": "com-chien-trung",
+    "title": "Cơm chiên trứng",
+    "category": "Cơm, cháo, bún, mì",
+    "servings": 2,
+    "prepMinutes": 5,
+    "cookMinutes": 8,
+    "status": "Draft",
+    "source": {
+      "type": "AI-assisted draft",
+      "review": "pending",
+      "publicationAllowed": false
+    },
+    "ingredients": [
+      {
+        "name": "Cơm đã nấu",
+        "quantity": 350,
+        "unit": "g"
+      },
+      {
+        "name": "Trứng gà",
+        "quantity": 2,
+        "unit": "piece"
+      },
+      {
+        "name": "Hành lá",
+        "quantity": 10,
+        "unit": "g"
+      },
+      {
+        "name": "Dầu ăn",
+        "quantity": 10,
+        "unit": "ml"
+      },
+      {
+        "name": "Muối",
+        "quantity": 2,
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Xới tơi cơm. Rửa hành lá, thái nhỏ và đánh tan trứng trong bát.",
+      "Đun nóng dầu, đổ trứng vào và đảo đến khi trứng vừa đông. Cho cơm và muối vào, đảo tới khi cơm nóng đều. Thêm hành lá trước khi tắt bếp."
+    ]
+  }
+]
