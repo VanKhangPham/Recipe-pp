@@ -2,154 +2,117 @@
 
 import * as React from "react";
 import { Recipe, Review } from "@/lib/types";
-import { MASTER_RECIPES } from "@/lib/data/recipes";
+import { usePathname } from "next/navigation";
+import { backendFetch } from "@/lib/services/api-client";
+import { isCloudRecipe } from "@/lib/services/planning-api";
 import { recipeService } from "@/lib/services/recipe-service";
 
 interface RecipesContextType {
   recipes: Recipe[];
-  userRecipes: Recipe[];
+  isLoading: boolean;
+  error: string;
+  refreshRecipes: () => void;
   getRecipeById: (id: string) => Recipe | undefined;
-  createRecipe: (recipe: Omit<Recipe, "id"> & { id?: string }) => Recipe;
-  updateRecipe: (id: string, recipe: Partial<Recipe>) => void;
-  deleteRecipe: (id: string) => void;
-  moderateRecipe: (id: string, newStatus: "published" | "rejected") => void;
-  addReview: (recipeId: string, review: Omit<Review, "id" | "createdAt">) => void;
+  addReview: (recipeId: string, review: Omit<Review, "id" | "createdAt">) => Promise<void>;
 }
 
 const RecipesContext = React.createContext<RecipesContextType | undefined>(undefined);
 
+function RecipesRouteRevalidator({ onNavigate }: { onNavigate: () => void }) {
+  const pathname = usePathname();
+  React.useEffect(() => {
+    const timer = window.setTimeout(onNavigate, 0);
+    return () => window.clearTimeout(timer);
+  }, [pathname, onNavigate]);
+  return null;
+}
+
 export function RecipesProvider({ children }: { children: React.ReactNode }) {
-  const [userRecipes, setUserRecipes] = React.useState<Recipe[]>([]);
-  const [cloudRecipes, setCloudRecipes] = React.useState<Recipe[]>([]);
+  const [revision, setRevision] = React.useState(0);
+  const requestKey = String(revision);
+  const completedAt = React.useRef(0);
+  const inFlight = React.useRef(false);
+  const [snapshot, setSnapshot] = React.useState<{ key: string; recipes: Recipe[]; error: string } | null>(null);
+  const isLoading = snapshot?.key !== requestKey;
+  const recipes = snapshot?.recipes ?? [];
+  const error = isLoading ? "" : snapshot.error;
 
   React.useEffect(() => {
-    try {
-      const stored = recipeService.getLocalUserRecipes();
-      setUserRecipes(stored);
-    } catch (e) {
-      console.warn("[RecipesContext] Load error", e);
-    }
-
-    recipeService
-      .fetchCloudNeonRecipes()
-      .then((liveRecipes) => {
-        if (liveRecipes && liveRecipes.length > 0) {
-          setCloudRecipes(liveRecipes);
+    const controller = new AbortController();
+    inFlight.current = true;
+    // Defer startup so the Strict Mode setup/cleanup probe sends no request.
+    const timer = window.setTimeout(() => {
+      recipeService.fetchCloudNeonRecipes(controller.signal).then((loaded) => {
+        if (!controller.signal.aborted) {
+          completedAt.current = Date.now();
+          setSnapshot({ key: requestKey, recipes: loaded, error: "" });
         }
-      })
-      .catch((err) => {
-        console.warn("[RecipesContext] Cloud Neon fetch fallback to presets", err);
+      }).catch((cause) => {
+        if (!controller.signal.aborted) setSnapshot({
+          key: requestKey, recipes: [],
+          error: cause instanceof Error ? cause.message : "Không tải được công thức.",
+        });
+      }).finally(() => {
+        if (!controller.signal.aborted) inFlight.current = false;
       });
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+      inFlight.current = false;
+    };
+  }, [requestKey]);
+
+  // A route change must not cancel the shared catalog load. Revalidate a
+  // completed catalog on navigation after one minute; manual refresh is immediate.
+  const revalidateOnNavigate = React.useCallback(() => {
+    if (!inFlight.current && completedAt.current > 0 && Date.now() - completedAt.current >= 60000) {
+      setRevision((value) => value + 1);
+    }
   }, []);
 
-  const allRecipes = React.useMemo(() => {
-    const seen = new Set<string>();
-    const merged: Recipe[] = [];
-    for (const item of [...userRecipes, ...cloudRecipes, ...MASTER_RECIPES]) {
-      const key = item.title.trim().toLowerCase();
-      if (!seen.has(key)) {
-        seen.add(key);
-        merged.push(item);
-      }
+  const getRecipeById = (id: string) => recipes.find((recipe) => recipe.id === id);
+  const refreshRecipes = () => setRevision((value) => value + 1);
+
+  const addReview = async (recipeId: string, reviewData: Omit<Review, "id" | "createdAt">) => {
+    if (!isCloudRecipe(recipeId)) {
+      throw new Error("Hãy chọn công thức đã xuất bản trên máy chủ để gửi đánh giá.");
     }
-    return merged;
-  }, [userRecipes, cloudRecipes]);
-
-  const getRecipeById = (id: string): Recipe | undefined => {
-    return allRecipes.find((r) => r.id === id);
-  };
-
-  const createRecipe = (data: Omit<Recipe, "id"> & { id?: string }): Recipe => {
-    const slug =
-      data.id ||
-      data.title
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[đĐ]/g, "d")
-        .replace(/[^a-z0-9]/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "") +
-        "-" +
-        Date.now().toString().slice(-4);
-
-    const newRecipe: Recipe = {
-      ...data,
-      id: slug,
-      status: data.status || "published",
-      createdAt: "Vừa xong",
-      reviews: data.reviews || [],
-      bookmarksCount: data.bookmarksCount || 0,
+    const saved = await backendFetch<{
+      id: string; author: { displayName: string }; rating: number; comment: string; createdAt: string;
+    }>(`/api/v1/recipes/${recipeId}/reviews`, {
+      method: "POST",
+      body: JSON.stringify({ rating: reviewData.rating, comment: reviewData.content }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!saved) throw new Error("Chưa xác nhận được đánh giá đã lưu. Kiểm tra kết nối hoặc đăng nhập lại trước khi thử tiếp.");
+    const review: Review = {
+      id: saved.id, userName: saved.author.displayName,
+      userAvatarText: saved.author.displayName.slice(0, 2).toUpperCase(),
+      rating: saved.rating, content: saved.comment, createdAt: saved.createdAt,
     };
-
-    const next = [newRecipe, ...userRecipes];
-    setUserRecipes(next);
-    recipeService.saveLocalUserRecipes(next);
-    return newRecipe;
-  };
-
-  const updateRecipe = (id: string, updates: Partial<Recipe>) => {
-    const next = userRecipes.map((r) => (r.id === id ? { ...r, ...updates } : r));
-    setUserRecipes(next);
-    recipeService.saveLocalUserRecipes(next);
-  };
-
-  const deleteRecipe = (id: string) => {
-    const next = userRecipes.filter((r) => r.id !== id);
-    setUserRecipes(next);
-    recipeService.saveLocalUserRecipes(next);
-  };
-
-  const moderateRecipe = (id: string, newStatus: "published" | "rejected") => {
-    const next = userRecipes.map((r) => (r.id === id ? { ...r, status: newStatus } : r));
-    setUserRecipes(next);
-    recipeService.saveLocalUserRecipes(next);
-  };
-
-  const addReview = (recipeId: string, reviewData: Omit<Review, "id" | "createdAt">) => {
-    const newRev: Review = {
-      ...reviewData,
-      id: "rev-" + Date.now(),
-      createdAt: "Vừa xong",
-    };
-
-    const isUserRecipe = userRecipes.some((r) => r.id === recipeId);
-    if (isUserRecipe) {
-      const next = userRecipes.map((r) => {
-        if (r.id !== recipeId) return r;
-        const currentReviews = r.reviews || [];
-        const updatedReviews = [newRev, ...currentReviews];
-        const newRating = Number(
-          (
-            updatedReviews.reduce((sum, item) => sum + item.rating, 0) /
-            updatedReviews.length
-          ).toFixed(1)
-        );
-        return {
-          ...r,
-          reviews: updatedReviews,
-          reviewsCount: updatedReviews.length,
-          rating: newRating,
-        };
-      });
-      setUserRecipes(next);
-      recipeService.saveLocalUserRecipes(next);
-    }
+    setSnapshot((current) => current && ({
+      ...current,
+      recipes: current.recipes.map((recipe) => recipe.id === recipeId
+        ? { ...recipe, reviews: [review, ...recipe.reviews.filter((item) => item.id !== review.id)] }
+        : recipe),
+    }));
   };
 
   return (
     <RecipesContext.Provider
       value={{
-        recipes: allRecipes,
-        userRecipes,
+        recipes,
+        isLoading,
+        error,
+        refreshRecipes,
         getRecipeById,
-        createRecipe,
-        updateRecipe,
-        deleteRecipe,
-        moderateRecipe,
         addReview,
       }}
     >
+      <React.Suspense fallback={null}>
+        <RecipesRouteRevalidator onNavigate={revalidateOnNavigate} />
+      </React.Suspense>
       {children}
     </RecipesContext.Provider>
   );
@@ -161,4 +124,12 @@ export function useRecipes() {
     throw new Error("useRecipes must be used within a RecipesProvider");
   }
   return context;
+}
+
+export function RecipeDataStatus() {
+  const { isLoading, error, refreshRecipes } = useRecipes();
+  if (!isLoading && !error) return null;
+  return <div className="fixed bottom-20 left-4 right-4 z-50 rounded-xl border bg-surface p-4 shadow-lg">
+    {isLoading ? <p role="status">Đang tải công thức…</p> : <><p role="alert">{error}</p><button className="mt-2 rounded border px-4 py-2" onClick={refreshRecipes}>Thử lại</button></>}
+  </div>;
 }

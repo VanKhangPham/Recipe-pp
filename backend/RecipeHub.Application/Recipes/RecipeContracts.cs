@@ -52,7 +52,11 @@ public sealed record RecipeWrite(
     [Required, MaxLength(10)] ImageInput[] Images);
 public sealed record RecipeSummary(Guid Id, string Title, string Slug, string Description, string? CoverImageUrl,
     PublicAuthor Author, int Servings, int PrepMinutes, int CookMinutes, int TotalMinutes, string Difficulty,
-    double? AverageRating, int ReviewCount, NamedItem[] Categories, DateTimeOffset CreatedAt, string? Status);
+    double? AverageRating, int ReviewCount, NamedItem[] Categories, DateTimeOffset CreatedAt, string? Status)
+{
+    // Catalog search needs ingredients, but not every recipe's steps/images/nutrition.
+    public RecipeIngredientDto[] Ingredients { get; init; } = [];
+}
 public sealed record RecipeIngredientDto(Guid Id, Guid IngredientId, string IngredientName, decimal Quantity, string Unit, string? Note, int Position);
 public sealed record RecipeStepDto(Guid Id, int Position, string Instruction, int? DurationMinutes);
 public sealed record RecipeImageDto(Guid Id, string Url, string AltText, int Position);

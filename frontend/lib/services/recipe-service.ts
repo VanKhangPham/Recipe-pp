@@ -20,7 +20,7 @@ interface BackendNamedItem {
   slug: string;
 }
 
-interface BackendRecipeSummary {
+export interface BackendRecipeSummary {
   id: string;
   title: string;
   slug: string;
@@ -37,6 +37,7 @@ interface BackendRecipeSummary {
   categories: BackendNamedItem[];
   createdAt: string;
   status?: string | null;
+  ingredients?: BackendRecipeDetail["ingredients"];
 }
 
 interface BackendPageResult<T> {
@@ -47,7 +48,7 @@ interface BackendPageResult<T> {
   totalPages: number;
 }
 
-interface BackendRecipeDetail {
+export interface BackendRecipeDetail {
   summary: BackendRecipeSummary;
   ingredients: {
     id: string;
@@ -123,7 +124,7 @@ const CATEGORY_MAP: Record<
   },
 };
 
-function mapBackendToRecipe(
+export function mapBackendToRecipe(
   summary: BackendRecipeSummary,
   detail?: BackendRecipeDetail | null
 ): Recipe {
@@ -145,7 +146,7 @@ function mapBackendToRecipe(
   };
   const diff = diffMap[summary.difficulty] || diffMap.Easy;
 
-  const ingredients: Ingredient[] = (detail?.ingredients || []).map((ing) => ({
+  const ingredients: Ingredient[] = (detail?.ingredients || summary.ingredients || []).map((ing) => ({
     id: ing.ingredientId || ing.id,
     name: ing.ingredientName,
     amount: `${Number(ing.quantity)} ${ing.unit}`,
@@ -197,8 +198,8 @@ function mapBackendToRecipe(
     totalTime: `${summary.totalMinutes} phút`,
     servings: summary.servings,
     calories: detail?.nutrition?.calories ? Number(detail.nutrition.calories) : 320,
-    rating: summary.averageRating ? Number(summary.averageRating.toFixed(1)) : 4.8,
-    reviewsCount: summary.reviewCount || 12,
+    rating: summary.averageRating != null ? Number(summary.averageRating.toFixed(1)) : 0,
+    reviewsCount: summary.reviewCount ?? 0,
     bookmarksCount: 24,
     image: summary.coverImageUrl || detail?.images?.[0]?.url || catInfo.image,
     imageAlt: summary.title,
@@ -214,44 +215,46 @@ function mapBackendToRecipe(
 
 class RecipeService {
   /**
-   * Fetch live published recipes (with full ingredients & steps) from ASP.NET Core + Cloud Neon
+   * Fetch catalog cards and ingredients; load cooking details only when a recipe opens.
    */
-  async fetchCloudNeonRecipes(): Promise<Recipe[]> {
-    const page = await backendFetch<BackendPageResult<BackendRecipeSummary>>(
-      "/api/v1/recipes?Page=1&PageSize=50"
-    );
-    if (!page || !Array.isArray(page.items) || page.items.length === 0) {
-      return [];
-    }
+  async fetchCloudNeonRecipes(signal?: AbortSignal): Promise<Recipe[]> {
+    const summaries: BackendRecipeSummary[] = [];
+    let pageNumber = 1;
+    let totalPages = 1;
+    const options = () => ({
+      cache: "no-store" as const,
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000),
+    });
+    do {
+      const page = await backendFetch<BackendPageResult<BackendRecipeSummary>>(
+        `/api/v1/recipes?page=${pageNumber}&pageSize=100`, options()
+      );
+      if (!page) throw new Error("Không tải được danh sách công thức. Vui lòng thử lại.");
+      summaries.push(...page.items);
+      totalPages = page.totalPages;
+      pageNumber++;
+    } while (pageNumber <= totalPages);
 
-    const detailed = await Promise.all(
-      page.items.map(async (item) => {
-        const detail = await backendFetch<BackendRecipeDetail>(`/api/v1/recipes/${item.id}`);
-        return mapBackendToRecipe(item, detail);
-      })
-    );
-    return detailed;
+    const recipes: Recipe[] = [];
+    // Older running API versions may not expose catalog ingredients until restarted.
+    // Keep that compatibility path bounded; current API needs only the list requests.
+    for (let offset = 0; offset < summaries.length; offset += 6) {
+      const batch = await Promise.all(summaries.slice(offset, offset + 6).map(async (item) => {
+        if (Array.isArray(item.ingredients)) return mapBackendToRecipe(item);
+        const detail = await backendFetch<BackendRecipeDetail>(`/api/v1/recipes/${item.id}`, options());
+        if (!detail) throw new Error("Không tải đủ dữ liệu công thức. Vui lòng thử lại.");
+        return mapBackendToRecipe(detail.summary, detail);
+      }));
+      recipes.push(...batch);
+    }
+    return recipes;
   }
 
   /**
-   * Retrieves all recipes (Cloud Neon recipes + local user recipes + master presets)
+   * Retrieves published recipes from the backend
    */
   async getAllRecipes(filters?: RecipeFilterParams): Promise<ApiResponse<Recipe[]>> {
-    const [cloudRecipes, userRecipes] = await Promise.all([
-      this.fetchCloudNeonRecipes(),
-      Promise.resolve(this.getLocalUserRecipes()),
-    ]);
-
-    const seenTitles = new Set<string>();
-    let combined: Recipe[] = [];
-
-    for (const r of [...userRecipes, ...cloudRecipes, ...MASTER_RECIPES]) {
-      const key = r.title.trim().toLowerCase();
-      if (!seenTitles.has(key)) {
-        seenTitles.add(key);
-        combined.push(r);
-      }
-    }
+    let combined = await this.fetchCloudNeonRecipes();
 
     if (filters) {
       if (filters.query) {

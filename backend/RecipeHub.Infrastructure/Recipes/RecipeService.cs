@@ -25,7 +25,12 @@ public sealed class RecipeService(RecipeHubDbContext db, TimeProvider clock) : I
         db.Set<Review>().Count(x => x.RecipeId == recipe.Id && x.ModerationStatus == "Visible"),
         (from link in db.Set<RecipeCategory>() join category in db.Categories on link.CategoryId equals category.Id
          where link.RecipeId == recipe.Id orderby category.Name select new NamedItem(category.Id, category.Name, category.Slug)).ToArray(),
-        recipe.CreatedAt, privateFields ? recipe.Status : null);
+        recipe.CreatedAt, privateFields ? recipe.Status : null)
+        {
+            Ingredients = (from item in db.Set<RecipeIngredient>() join ingredient in db.Ingredients on item.IngredientId equals ingredient.Id
+                where item.RecipeId == recipe.Id orderby item.Position
+                select new RecipeIngredientDto(item.Id, ingredient.Id, ingredient.Name, item.Quantity, item.Unit, item.Note, item.Position)).ToArray()
+        };
 
     public async Task<PageResult<RecipeSummary>> ListAsync(RecipeQuery query, Guid? ownerId, bool admin, CancellationToken ct)
     {
@@ -59,8 +64,7 @@ public sealed class RecipeService(RecipeHubDbContext db, TimeProvider clock) : I
         var summary = await db.Recipes.Where(x => x.Id == id).Select(Summary(admin || recipe.AuthorId == userId)).SingleAsync(ct);
         // Detail exposes full description, while the list uses a short preview.
         summary = summary with { Description = recipe.Description };
-        var ingredients = await (from item in db.Set<RecipeIngredient>() join ingredient in db.Ingredients on item.IngredientId equals ingredient.Id
-            where item.RecipeId == id orderby item.Position select new RecipeIngredientDto(item.Id, ingredient.Id, ingredient.Name, item.Quantity, item.Unit, item.Note, item.Position)).ToArrayAsync(ct);
+        var ingredients = summary.Ingredients;
         var steps = await db.Set<RecipeStep>().Where(x => x.RecipeId == id).OrderBy(x => x.Position)
             .Select(x => new RecipeStepDto(x.Id, x.Position, x.Instruction, x.DurationMinutes)).ToArrayAsync(ct);
         var images = await db.Set<RecipeImage>().Where(x => x.RecipeId == id).OrderBy(x => x.Position)
