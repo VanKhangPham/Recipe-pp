@@ -60,7 +60,7 @@ export function Footer() {
                 Đi chợ thông minh
               </Link>
               <Link
-                href="/recipes/1/cook"
+                href="/recipes"
                 className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors"
               >
                 Chế độ nấu rảnh tay
@@ -75,10 +75,10 @@ export function Footer() {
             </span>
             <div className="flex flex-col gap-2.5 mt-space-xs">
               <Link
-                href="/tokens"
+                href="/ingredient-search"
                 className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors"
               >
-                Hệ thống mẫu &amp; Mã màu (Tokens)
+                Tìm món theo nguyên liệu
               </Link>
               <a
                 href="#"
@@ -130,7 +130,7 @@ export function Footer() {
         {/* Bottom copyright row */}
         <div className="pt-space-lg flex flex-col sm:flex-row items-center justify-between gap-space-md text-on-surface-variant">
           <p className="font-body-sm text-body-sm text-on-surface-variant">
-            © 2025 RecipeHub. Bản quyền thuộc về cộng đồng đầu bếp gia đình.
+            © 2026 RecipeHub. Bản quyền thuộc về cộng đồng đầu bếp gia đình.
           </p>
           <div className="flex items-center gap-space-md font-body-sm text-body-sm">
             <span className="flex items-center gap-1">

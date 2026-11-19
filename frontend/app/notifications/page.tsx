@@ -143,7 +143,7 @@ const INITIAL_NOTIFICATIONS: NotificationItemData[] = [
     category: "system",
     isRead: true,
     dateGroup: "older",
-    timeLabel: "18/05/2024, 09:12",
+    timeLabel: "10/11/2026, 09:12",
     title: "Bảo mật tài khoản",
     content:
       "Tài khoản của bạn đã được kích hoạt thành công Xác thực 2 bước (2FA) trên trình duyệt Chrome macOS tại Hà Nội. Gian bếp công thức của bạn giờ đây đã được bảo vệ tối đa.",
@@ -372,10 +372,10 @@ export default function NotificationsPage() {
                       : "Tuần này & Cũ hơn";
                   const groupDateLabel =
                     groupKey === "today"
-                      ? "Thứ Năm, 23/05/2024"
+                      ? "Thứ Hai, 16/11/2026"
                       : groupKey === "yesterday"
-                      ? "Thứ Tư, 22/05/2024"
-                      : "18/05/2024";
+                      ? "Chủ Nhật, 15/11/2026"
+                      : "10/11/2026";
 
                   const groupUnread = groupItems.filter((i) => !i.isRead).length;
 

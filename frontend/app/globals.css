@@ -89,21 +89,21 @@
   --spacing-space-xl: 2.5rem;
 
   /* Fonts */
-  --font-display-hero: var(--font-outfit), sans-serif;
-  --font-display-hero-mobile: var(--font-outfit), sans-serif;
-  --font-headline-lg: var(--font-outfit), sans-serif;
-  --font-headline-lg-mobile: var(--font-outfit), sans-serif;
-  --font-headline-md: var(--font-outfit), sans-serif;
-  --font-headline-sm: var(--font-outfit), sans-serif;
-  --font-title-md: var(--font-be-vietnam-pro), sans-serif;
-  --font-body-lg: var(--font-be-vietnam-pro), sans-serif;
-  --font-body-md: var(--font-be-vietnam-pro), sans-serif;
-  --font-body-sm: var(--font-be-vietnam-pro), sans-serif;
-  --font-label-mono-lg: var(--font-jetbrains-mono), monospace;
-  --font-label-mono-sm: var(--font-jetbrains-mono), monospace;
-  --font-sans: var(--font-be-vietnam-pro), sans-serif;
-  --font-heading: var(--font-outfit), sans-serif;
-  --font-mono: var(--font-jetbrains-mono), monospace;
+  --font-display-hero: "Outfit", "Segoe UI", system-ui, sans-serif;
+  --font-display-hero-mobile: "Outfit", "Segoe UI", system-ui, sans-serif;
+  --font-headline-lg: "Outfit", "Segoe UI", system-ui, sans-serif;
+  --font-headline-lg-mobile: "Outfit", "Segoe UI", system-ui, sans-serif;
+  --font-headline-md: "Outfit", "Segoe UI", system-ui, sans-serif;
+  --font-headline-sm: "Outfit", "Segoe UI", system-ui, sans-serif;
+  --font-title-md: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --font-body-lg: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --font-body-md: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --font-body-sm: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --font-label-mono-lg: "JetBrains Mono", Consolas, ui-monospace, monospace;
+  --font-label-mono-sm: "JetBrains Mono", Consolas, ui-monospace, monospace;
+  --font-sans: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --font-heading: "Outfit", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, ui-monospace, monospace;
 
   /* Font Sizes */
   --text-display-hero: 56px;

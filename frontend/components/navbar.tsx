@@ -6,33 +6,26 @@ import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/context/auth-context";
-import { useShoppingList } from "@/lib/context/shopping-list-context";
+
+import { safeStorage } from "@/lib/services/storage";
 import { useFavorites } from "@/lib/context/favorites-context";
 
-interface NavbarProps {
-  initialLoggedIn?: boolean;
-}
-
-export function Navbar({ initialLoggedIn = false }: NavbarProps) {
+export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isLoggedIn, login, logout } = useAuth();
-  const { totalCount: shoppingCount } = useShoppingList();
+  const { user, isLoggedIn, isRestoringSession, logout } = useAuth();
+
   const { favorites } = useFavorites();
-  const [showBanner, setShowBanner] = React.useState(true);
+  const [bannerClosed, setBannerClosed] = React.useState(false);
+  const bannerHidden = React.useSyncExternalStore(subscribeToBanner, readBannerHidden, () => false);
+  const showBanner = !bannerClosed && !bannerHidden;
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
 
-  React.useEffect(() => {
-    const dismissed = localStorage.getItem("recipehub_guest_banner_dismissed");
-    if (dismissed === "true") {
-      setShowBanner(false);
-    }
-  }, []);
-
   const dismissBanner = () => {
-    setShowBanner(false);
-    localStorage.setItem("recipehub_guest_banner_dismissed", "true");
+    setBannerClosed(true);
+    safeStorage.setItem("recipehub_guest_banner_dismissed", "true");
+    window.dispatchEvent(new Event("recipehub-banner"));
   };
 
   const navLinks = [
@@ -143,14 +136,7 @@ export function Navbar({ initialLoggedIn = false }: NavbarProps) {
                 >
                   Đăng ký
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => login("phuc.le@recipehub.vn", "Lê Hoàng Phúc", "admin")}
-                  title="Đăng nhập nhanh (Chế độ Người dùng)"
-                  className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 cursor-pointer shadow-sm text-on-primary hover:scale-105 transition-transform"
-                >
-                  <Icon name="person" size={18} />
-                </button>
+
               </>
             ) : (
               <div className="relative">
@@ -244,17 +230,17 @@ export function Navbar({ initialLoggedIn = false }: NavbarProps) {
       </div>
 
       {/* Guest Data Transparency Banner Strip */}
-      {!isLoggedIn && showBanner && (
+      {!isRestoringSession && !isLoggedIn && !["/login", "/register", "/favorites"].includes(pathname) && showBanner && (
         <div className="w-full bg-surface-container-low py-2.5 px-gutter shadow-[0_1px_4px_rgba(0,0,0,0.02)]">
           <div className="w-full flex items-center justify-between gap-space-md">
             <div className="flex items-center gap-space-sm min-w-0">
               <Icon name="cloud_off" size={20} className="text-secondary shrink-0" />
-              <p className="font-body-sm text-body-sm text-on-surface truncate">
-                Dữ liệu yêu thích và kế hoạch đang lưu trên trình duyệt này.{" "}
+              <p className="font-body-sm text-body-sm text-on-surface">
+                Bạn đang dùng chế độ khách trên trình duyệt này.{" "}
                 <Link href="/login" className="text-primary hover:underline font-semibold ml-1">
                   Đăng nhập
                 </Link>{" "}
-                để đồng bộ trên mọi thiết bị.
+                để dùng dữ liệu của tài khoản. Dữ liệu khách chưa được tự chuyển sang tài khoản.
               </p>
             </div>
             <button
@@ -270,4 +256,16 @@ export function Navbar({ initialLoggedIn = false }: NavbarProps) {
       )}
     </header>
   );
+}
+
+function readBannerHidden() {
+  return safeStorage.getItem("recipehub_guest_banner_dismissed") === "true";
+}
+function subscribeToBanner(listener: () => void) {
+  window.addEventListener("storage", listener);
+  window.addEventListener("recipehub-banner", listener);
+  return () => {
+    window.removeEventListener("storage", listener);
+    window.removeEventListener("recipehub-banner", listener);
+  };
 }

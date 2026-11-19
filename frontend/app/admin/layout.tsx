@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
+import { useAuth } from "@/lib/context/auth-context";
 
 function AdminLayoutInner({
   children,
@@ -11,6 +12,8 @@ function AdminLayoutInner({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
 
   const navItems = [
     {
@@ -18,48 +21,36 @@ function AdminLayoutInner({
       href: "/admin",
       icon: "space_dashboard",
       exact: true,
-      badge: null,
-      badgeColor: "",
     },
     {
       title: "Quản lý công thức",
       href: "/admin/recipes",
       icon: "menu_book",
       exact: false,
-      badge: "14",
-      badgeColor: "bg-primary-container text-on-primary-container",
     },
     {
       title: "Quản lý người dùng",
       href: "/admin/users",
       icon: "group",
       exact: false,
-      badge: null,
-      badgeColor: "",
     },
     {
       title: "Danh mục & Nguyên liệu",
       href: "/admin/categories",
       icon: "category",
       exact: false,
-      badge: null,
-      badgeColor: "",
     },
     {
-      title: "Bình luận & Báo cáo",
+      title: "Kiểm duyệt đánh giá",
       href: "/admin/reports",
       icon: "flag",
       exact: false,
-      badge: "3",
-      badgeColor: "bg-error text-on-error",
     },
     {
-      title: "Cài đặt hệ thống",
+      title: "Trạng thái hệ thống",
       href: "/admin/settings",
       icon: "settings",
       exact: false,
-      badge: null,
-      badgeColor: "",
     },
   ];
 
@@ -69,8 +60,8 @@ function AdminLayoutInner({
     if (pathname.startsWith("/admin/recipes")) return "Quản lý công thức";
     if (pathname.startsWith("/admin/users")) return "Quản lý người dùng";
     if (pathname.startsWith("/admin/categories")) return "Danh mục & Nguyên liệu";
-    if (pathname.startsWith("/admin/reports")) return "Bình luận & Báo cáo vi phạm";
-    if (pathname.startsWith("/admin/settings")) return "Cài đặt hệ thống & An ninh";
+    if (pathname.startsWith("/admin/reports")) return "Kiểm duyệt đánh giá";
+    if (pathname.startsWith("/admin/settings")) return "Trạng thái hệ thống";
     return "Quản trị";
   };
 
@@ -137,17 +128,6 @@ function AdminLayoutInner({
                     <Icon name={item.icon} size={20} />
                     <span className="font-body-md text-body-md">{item.title}</span>
                   </div>
-                  {item.badge && (
-                    <span
-                      className={`px-2 py-0.5 rounded-full font-label-mono-sm text-label-mono-sm ${
-                        isActive
-                          ? "bg-on-primary text-primary font-semibold"
-                          : item.badgeColor
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
                 </Link>
               );
             })}
@@ -175,20 +155,13 @@ function AdminLayoutInner({
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="font-body-sm text-body-sm font-semibold text-surface-container-lowest truncate">
-                  Lê Hoàng Phúc
+                  {user?.name}
                 </span>
                 <span className="font-label-mono-sm text-label-mono-sm text-tertiary-fixed-dim truncate">
-                  Quản trị viên cấp cao
+                  Quản trị viên
                 </span>
               </div>
             </div>
-            <button
-              className="p-1 text-tertiary-fixed-dim hover:text-surface-container-lowest transition-colors cursor-pointer"
-              type="button"
-              aria-label="Tùy chọn tài khoản"
-            >
-              <Icon name="expand_more" size={18} />
-            </button>
           </div>
         </div>
       </aside>
@@ -223,10 +196,6 @@ function AdminLayoutInner({
           </div>
 
           <div className="flex items-center gap-space-md">
-            <div className="hidden xl:flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-secondary-container text-on-secondary-container font-label-mono-sm text-label-mono-sm font-medium">
-              <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
-              <span>Máy chủ ổn định</span>
-            </div>
 
             <div className="flex items-center gap-space-xs">
               <Link
@@ -259,12 +228,29 @@ function AdminLayoutInner({
 
             <div className="h-5 w-px bg-outline-variant/50" />
 
-            <div className="flex items-center gap-space-sm pl-1 cursor-pointer">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                <Icon name="person" size={18} className="text-on-primary" />
+            <details className="relative">
+              <summary aria-label="Tùy chọn tài khoản" className="flex cursor-pointer list-none items-center gap-space-sm pl-1">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
+                  <Icon name="person" size={18} className="text-on-primary" />
+                </span>
+                <Icon name="expand_more" size={18} className="text-on-surface-variant" />
+              </summary>
+              <div className="absolute right-0 top-full z-50 mt-2 w-max max-w-72 rounded-xl bg-surface-container-lowest p-3 shadow-lg">
+                <p className="font-semibold">{user?.name}</p>
+                <p className="break-all text-on-surface-variant">{user?.email}</p>
+                <Link href="/admin/users" className="mt-2 block text-primary hover:underline">Quản lý người dùng</Link>
+                <button
+                  type="button"
+                  className="mt-2 block text-primary hover:underline"
+                  onClick={() => {
+                    logout();
+                    router.replace("/login");
+                  }}
+                >
+                  Đăng xuất
+                </button>
               </div>
-              <Icon name="expand_more" size={18} className="text-on-surface-variant" />
-            </div>
+            </details>
           </div>
         </header>
 
@@ -281,20 +267,10 @@ function AdminLayoutInner({
                 © 2025 RecipeHub Platform. Bản quyền nội bộ.
               </span>
               <span className="hidden md:inline font-label-mono-sm text-label-mono-sm">•</span>
-              <span className="font-label-mono-sm text-label-mono-sm text-secondary flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
-                Uptime 99.98%
-              </span>
             </div>
             <div className="flex items-center gap-space-lg font-label-mono-sm text-label-mono-sm text-tertiary">
               <Link href="/privacy" className="hover:text-primary transition-colors">
                 Chính sách bảo mật
-              </Link>
-              <Link href="/admin/settings" className="hover:text-primary transition-colors">
-                Nhật ký cập nhật
-              </Link>
-              <Link href="/admin/settings" className="hover:text-primary transition-colors">
-                Trung tâm hỗ trợ kỹ thuật
               </Link>
             </div>
           </div>
@@ -304,11 +280,26 @@ function AdminLayoutInner({
   );
 }
 
+const subscribeToHydration = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { user, isRestoringSession } = useAuth();
+  const hydrated = React.useSyncExternalStore(subscribeToHydration, getClientSnapshot, getServerSnapshot);
+  if (!hydrated || isRestoringSession) return <p className="p-6" role="status" suppressHydrationWarning>Đang kiểm tra phiên đăng nhập…</p>;
+  if (user?.role !== "admin") {
+    return (
+      <div className="p-6">
+        <p>Khu vực này yêu cầu tài khoản Admin.</p>
+        <Link href="/login" className="text-primary underline">Đăng nhập</Link>
+      </div>
+    );
+  }
   return (
     <React.Suspense fallback={<div className="min-h-screen bg-background" />}>
       <AdminLayoutInner>{children}</AdminLayoutInner>

@@ -57,7 +57,7 @@ export const INITIAL_COLLECTIONS: string[] = [
 class FavoritesService {
   async getFavorites(): Promise<ApiResponse<FavoriteItem[]>> {
     await simulateNetworkDelay();
-    const favs = safeStorage.getJSON<FavoriteItem[]>(FAVORITES_STORAGE_KEY, INITIAL_FAVORITES);
+    const favs = safeStorage.getJSON<FavoriteItem[]>(FAVORITES_STORAGE_KEY, []);
     return {
       data: favs,
       success: true,

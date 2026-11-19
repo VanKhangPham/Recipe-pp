@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Icon } from "@/components/ui/icon";
@@ -117,7 +117,7 @@ const CATEGORIES = [
 ];
 
 function AuthorProfileContent() {
-  const params = useParams();
+
   const [isFollowed, setIsFollowed] = React.useState(false);
   const [followerTotal, setFollowerTotal] = React.useState(14820);
   const [activeTab, setActiveTab] = React.useState<"recipes" | "collections" | "reviews" | "stories">("recipes");

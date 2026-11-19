@@ -7,10 +7,12 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
-import { safeStorage } from "@/lib/services/storage";
+import { authRequest } from "@/lib/services/auth-request";
+import { useAuth } from "@/lib/context/auth-context";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { login } = useAuth();
 
   const [fullName, setFullName] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -18,19 +20,20 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [agreeTerms, setAgreeTerms] = React.useState(false);
-  const [subscribeWeekly, setSubscribeWeekly] = React.useState(true);
+  const submitLock = React.useRef(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   // Password rules validation
-  const hasLen = password.length >= 8;
+  const hasLen = password.length >= 12 && password.length <= 128;
   const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
   const hasNum = /[0-9]/.test(password);
   const hasSpec = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
 
   let score = 0;
   if (hasLen) score++;
-  if (hasUpper) score++;
+  if (hasUpper && hasLower) score++;
   if (hasNum) score++;
   if (hasSpec) score++;
 
@@ -47,7 +50,7 @@ export default function RegisterPage() {
       strengthLabel = "Độ mạnh: Khá an toàn";
       strengthColor = "text-primary";
     } else {
-      strengthLabel = "Độ mạnh: Rất mạnh";
+      strengthLabel = hasLen && hasLower ? "Đáp ứng yêu cầu mật khẩu" : "Chưa đủ yêu cầu mật khẩu";
       strengthColor = "text-secondary";
     }
   }
@@ -58,8 +61,8 @@ export default function RegisterPage() {
   const validate = (): boolean => {
     setErrorMessage(null);
 
-    if (!fullName.trim() || fullName.trim().length < 2) {
-      setErrorMessage("Vui lòng nhập họ và tên (tối thiểu 2 ký tự).");
+    if (!fullName.trim() || fullName.trim().length > 100) {
+      setErrorMessage("Vui lòng nhập họ và tên (từ 1 đến 100 ký tự).");
       return false;
     }
 
@@ -70,7 +73,7 @@ export default function RegisterPage() {
     }
 
     if (!hasLen) {
-      setErrorMessage("Mật khẩu phải có độ dài tối thiểu 8 ký tự.");
+      setErrorMessage("Mật khẩu phải có độ dài từ 12 đến 128 ký tự.");
       return false;
     }
 
@@ -79,13 +82,8 @@ export default function RegisterPage() {
       return false;
     }
 
-    if (!hasUpper && !hasSpec) {
-      setErrorMessage("Mật khẩu cần thêm ít nhất 1 chữ hoa hoặc 1 ký tự đặc biệt (!@#$%).");
-      return false;
-    }
-
-    if (score < 3) {
-      setErrorMessage("Mật khẩu chưa đủ an toàn theo quy chuẩn (yêu cầu đạt mức Khá hoặc Rất mạnh).");
+    if (!hasUpper || !hasSpec || !hasLower) {
+      setErrorMessage("Mật khẩu cần có chữ hoa, chữ thường và ký tự đặc biệt (!@#$%).");
       return false;
     }
 
@@ -107,15 +105,34 @@ export default function RegisterPage() {
     return true;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (submitLock.current || !validate()) return;
+    submitLock.current = true;
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      safeStorage.setItem("recipehub_pending_verify_email", email.trim());
-      router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`);
-    }, 800);
+    setErrorMessage(null);
+    try {
+      const account = await authRequest<{ id: string; email: string; displayName: string }>("register", {
+          email: email.trim(),
+          password: password,
+          displayName: fullName.trim(),
+      });
+
+      if (!account) throw new Error("Đăng ký không thành công. Kiểm tra kết nối hoặc email đã sử dụng.");
+
+      // Tự động đăng nhập vào session và chuyển hướng về trang chủ công thức
+      try {
+        await login(email.trim(), password);
+        router.push("/recipes");
+      } catch {
+        router.replace("/login?registered=1");
+      }
+    } catch (err: unknown) {
+      setIsSubmitting(false);
+      const message = err instanceof Error ? err.message : "Đăng ký không thành công. Email này có thể đã được sử dụng.";
+      setErrorMessage(message);
+    } finally { submitLock.current = false; setIsSubmitting(false); }
   };
 
   return (
@@ -126,7 +143,7 @@ export default function RegisterPage() {
           {/* Split-screen Architectural Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg lg:gap-space-xl items-start">
             {/* Left Editorial Storytelling Column (5 cols) */}
-            <div className="lg:col-span-5 flex flex-col gap-space-lg relative">
+            <div className="hidden lg:col-span-5 lg:flex flex-col gap-space-lg relative">
               {/* Subtle Decorative Culinary Glow */}
               <div className="absolute -top-12 -left-12 w-72 h-72 rounded-full bg-primary-fixed/20 blur-3xl pointer-events-none -z-10" />
 
@@ -137,7 +154,7 @@ export default function RegisterPage() {
                   <span>Cộng Đồng Ẩm Thực Văn Minh</span>
                 </div>
                 <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight leading-tight mb-space-sm">
-                  Gìn giữ hương vị bếp nhà cùng <span className="text-primary font-bold">45.000+</span> đầu bếp gia đình.
+                  Lưu giữ công thức, lên kế hoạch cho bữa cơm nhà.
                 </h1>
                 <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed mb-space-lg">
                   Tham gia RecipeHub để đồng bộ kế hoạch dinh dưỡng đa thiết bị, lưu giữ công thức gia truyền và đóng góp vào kho tàng mỹ vị Việt hoàn toàn phi thương mại, không quảng cáo rác.
@@ -152,8 +169,8 @@ export default function RegisterPage() {
                   </div>
                   <div className="bg-surface-container-low p-space-md rounded-xl flex flex-col gap-1 border border-outline-variant/20">
                     <Icon name="format_image_left" size={24} className="text-secondary" />
-                    <span className="font-title-md text-title-md text-on-surface mt-1">Chống Spam Tuyệt Đối</span>
-                    <span className="font-body-sm text-body-sm text-on-surface-variant">Quy trình kiểm duyệt công thức 2 lớp chất lượng cao.</span>
+                    <span className="font-title-md text-title-md text-on-surface mt-1">Chia sẻ công thức</span>
+                    <span className="font-body-sm text-body-sm text-on-surface-variant">Lưu bản nháp và hoàn thiện món ăn trước khi xuất bản.</span>
                   </div>
                 </div>
 
@@ -176,20 +193,6 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
-                {/* Member Testimonial Snippet */}
-                <div className="mt-space-md bg-surface-container-low p-space-md rounded-xl flex items-center gap-space-sm border border-outline-variant/20">
-                  <div className="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed font-bold text-sm shrink-0">
-                    LN
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <p className="font-body-sm text-body-sm text-on-surface italic truncate">
-                      &ldquo;Tôi đã số hóa hơn 60 công thức của bà ngoại mà không sợ thất lạc.&rdquo;
-                    </p>
-                    <span className="font-label-mono-sm text-label-mono-sm text-on-surface-variant">
-                      Lê Ngọc Mai — Thành viên từ 2023
-                    </span>
-                  </div>
-                </div>
               </div>
 
               {/* Strict Anti-Spam Commitment Notice */}
@@ -200,7 +203,7 @@ export default function RegisterPage() {
                     Cam kết cộng đồng minh bạch
                   </span>
                   <p className="font-body-sm text-body-sm text-on-surface-variant leading-normal">
-                    RecipeHub kiên quyết loại trừ các tài khoản tạo tự động, bài đăng quảng cáo thực phẩm chức năng hoặc nội dung sao chép không ghi nguồn.
+                    Khi chia sẻ công thức, hãy ghi rõ nguồn nội dung và sử dụng hình ảnh bạn có quyền chia sẻ.
                   </p>
                 </div>
               </div>
@@ -208,16 +211,16 @@ export default function RegisterPage() {
 
             {/* Right Registration Form Column (7 cols) */}
             <div className="lg:col-span-7">
-              {/* Demo Mode Notice */}
-              <div className="mb-space-md p-space-md rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200">
+              {/* Live Registration Notice */}
+              <div className="mb-space-md p-space-md rounded-2xl bg-secondary-fixed/30 border border-secondary/20 text-on-surface">
                 <div className="flex items-start gap-space-sm">
-                  <Icon name="info" size={20} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <Icon name="verified_user" size={20} className="text-secondary shrink-0 mt-0.5" />
                   <div className="flex-1 text-xs sm:text-sm">
-                    <span className="font-semibold block mb-0.5">
-                      Luồng đăng ký thử nghiệm (Demo Registration)
+                    <span className="font-semibold block mb-0.5 text-on-surface">
+                      Tạo tài khoản RecipeHub
                     </span>
-                    <p className="opacity-90 leading-relaxed">
-                      Form kiểm tra chặt chẽ quy tắc mật khẩu và định dạng dữ liệu. Khi gửi thành công, bạn sẽ được chuyển sang giao diện mô phỏng xác thực email.
+                    <p className="text-on-surface-variant leading-relaxed">
+                      Dùng tài khoản để lưu công thức yêu thích, thực đơn và danh sách đi chợ trên các thiết bị.
                     </p>
                   </div>
                 </div>
@@ -231,27 +234,28 @@ export default function RegisterPage() {
                       Tạo Tài Khoản Mới
                     </span>
                     <span className="font-label-mono-sm text-label-mono-sm text-on-surface-variant">
-                      Bước 1 / 2
+                      Thông tin tài khoản
                     </span>
                   </div>
                   <h2 className="font-headline-md text-headline-md text-on-surface tracking-tight mt-1">
                     Gia nhập gian bếp thông minh
                   </h2>
                   <p className="font-body-md text-body-md text-on-surface-variant mt-1">
-                    Điền thông tin bên dưới để bắt đầu chia sẻ công thức và lưu trữ bộ sưu tập ẩm thực của riêng bạn.
+                    Điền thông tin để lưu món yêu thích và lập thực đơn của bạn.
                   </p>
                 </div>
 
                 {/* Inline Error Notice */}
                 {errorMessage && (
-                  <div className="mb-space-md p-space-md rounded-xl bg-error/10 border border-error/20 flex items-start gap-space-sm text-error">
+                  <div role="alert" className="mb-space-md p-space-md rounded-xl bg-error/10 border border-error/20 flex items-start gap-space-sm text-error">
                     <Icon name="error" size={18} className="shrink-0 mt-0.5" />
                     <span className="font-body-sm text-body-sm leading-snug">{errorMessage}</span>
                   </div>
                 )}
 
                 {/* Main Register Form */}
-                <form className="flex flex-col gap-space-md" onSubmit={handleSubmit} noValidate>
+                <form className="flex flex-col gap-space-md" onSubmit={handleSubmit} aria-busy={isSubmitting} noValidate>
+                  <fieldset disabled={isSubmitting} className="flex min-w-0 flex-col gap-space-md">
                   {/* Full Name Field */}
                   <div className="flex flex-col gap-1.5">
                     <label className="font-title-md text-title-md text-on-surface text-sm flex items-center justify-between" htmlFor="fullName">
@@ -264,7 +268,7 @@ export default function RegisterPage() {
                       </span>
                       <input
                         id="fullName"
-                        name="fullName"
+                        name="fullName" autoComplete="name" maxLength={100}
                         type="text"
                         value={fullName}
                         onChange={(e) => {
@@ -290,7 +294,7 @@ export default function RegisterPage() {
                       </span>
                       <input
                         id="email"
-                        name="email"
+                        name="email" autoComplete="email" maxLength={256}
                         type="email"
                         value={email}
                         onChange={(e) => {
@@ -318,21 +322,21 @@ export default function RegisterPage() {
                       </span>
                       <input
                         id="password"
-                        name="password"
+                        name="password" autoComplete="new-password" maxLength={128}
                         type={showPassword ? "text" : "password"}
                         value={password}
                         onChange={(e) => {
                           setPassword(e.target.value);
                           if (errorMessage) setErrorMessage(null);
                         }}
-                        placeholder="Tối thiểu 8 ký tự, có số và ký tự đặc biệt..."
+                        placeholder="Từ 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt"
                         required
                         className="w-full pl-11 pr-11 py-2.5 bg-surface-container-lowest rounded-xl font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant/60 shadow-inner border border-outline-variant/40 outline-none focus:bg-surface-container-low focus:border-primary transition-all"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        title="Ẩn/Hiện mật khẩu"
+                        aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"} aria-pressed={showPassword}
                         className="absolute right-3.5 text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
                       >
                         <Icon name={showPassword ? "visibility_off" : "visibility"} size={20} />
@@ -386,7 +390,7 @@ export default function RegisterPage() {
                       <div className="grid grid-cols-2 gap-x-space-sm gap-y-1 mt-1">
                         <div className={`flex items-center gap-1.5 transition-colors ${hasLen ? "text-secondary font-medium" : "text-on-surface-variant"}`}>
                           <Icon name={hasLen ? "check_circle" : "radio_button_unchecked"} size={15} />
-                          <span className="font-body-sm text-body-sm">Ít nhất 8 ký tự</span>
+                          <span className="font-body-sm text-body-sm">Từ 12 đến 128 ký tự; có chữ thường</span>
                         </div>
                         <div className={`flex items-center gap-1.5 transition-colors ${hasUpper ? "text-secondary font-medium" : "text-on-surface-variant"}`}>
                           <Icon name={hasUpper ? "check_circle" : "radio_button_unchecked"} size={15} />
@@ -418,7 +422,7 @@ export default function RegisterPage() {
                       </span>
                       <input
                         id="confirmPassword"
-                        name="confirmPassword"
+                        name="confirmPassword" autoComplete="new-password" maxLength={128}
                         type="password"
                         value={confirmPassword}
                         onChange={(e) => {
@@ -469,19 +473,7 @@ export default function RegisterPage() {
                       </span>
                     </label>
 
-                    <label className="flex items-start gap-space-sm cursor-pointer group">
-                      <input
-                        id="subscribeWeekly"
-                        name="subscribeWeekly"
-                        type="checkbox"
-                        checked={subscribeWeekly}
-                        onChange={(e) => setSubscribeWeekly(e.target.checked)}
-                        className="mt-1 w-4 h-4 rounded text-secondary focus:ring-0 focus:outline-none accent-secondary cursor-pointer"
-                      />
-                      <span className="font-body-sm text-body-sm text-on-surface-variant leading-snug">
-                        Nhận thực đơn gợi ý tuần và bí quyết nấu ăn chọn lọc (tối đa 1 email/tuần).
-                      </span>
-                    </label>
+
                   </div>
 
                   {/* Submit Button */}
@@ -498,16 +490,17 @@ export default function RegisterPage() {
                       {isSubmitting ? (
                         <>
                           <Icon name="sync" size={20} className="animate-spin" />
-                          <span>Đang khởi tạo tài khoản thử nghiệm...</span>
+                          <span>Đang tạo tài khoản…</span>
                         </>
                       ) : (
                         <>
-                          <span>Đăng ký &amp; Tiếp tục xác thực</span>
+                          <span>Tạo tài khoản</span>
                           <Icon name="arrow_forward" size={20} />
                         </>
                       )}
                     </button>
                   </div>
+                  </fieldset>
                 </form>
 
                 {/* Footer Switch to Login */}

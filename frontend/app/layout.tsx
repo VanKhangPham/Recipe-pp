@@ -1,29 +1,7 @@
 import type { Metadata } from "next";
-import { Be_Vietnam_Pro, Outfit, JetBrains_Mono } from "next/font/google";
 import { MobileTabBar } from "@/components/mobile-tab-bar";
 import { Providers } from "@/components/providers";
 import "./globals.css";
-
-const beVietnamPro = Be_Vietnam_Pro({
-  weight: ["300", "400", "500", "600", "700"],
-  subsets: ["latin", "vietnamese"],
-  variable: "--font-be-vietnam-pro",
-  display: "swap",
-});
-
-const outfit = Outfit({
-  weight: ["400", "500", "600", "700", "800"],
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-outfit",
-  display: "swap",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  weight: ["400", "500", "600"],
-  subsets: ["latin", "vietnamese"],
-  variable: "--font-jetbrains-mono",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "RecipeHub - Nền Tảng Công Thức & Kế Hoạch Bữa Ăn Thông Minh",
@@ -39,7 +17,7 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
-      className={`${beVietnamPro.variable} ${outfit.variable} ${jetbrainsMono.variable} h-full`}
+      className="h-full"
       suppressHydrationWarning
     >
       <head>
@@ -50,7 +28,11 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+          href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Outfit:wght@400;500;600;700;800&amp;display=swap"
+          rel="stylesheet"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
           rel="stylesheet"
         />
       </head>

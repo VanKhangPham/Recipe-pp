@@ -2,10 +2,14 @@
 
 import * as React from "react";
 import { Recipe } from "@/lib/types";
-import { MASTER_RECIPES } from "@/lib/data/recipes";
+import { usePathname, useRouter } from "next/navigation";
+import { useRecipes } from "@/lib/context/recipes-context";
+import { isCloudRecipe } from "@/lib/services/planning-api";
+import { useAuth } from "@/lib/context/auth-context";
+import { backendFetch } from "@/lib/services/api-client";
+import { BackendRecipeSummary, mapBackendToRecipe } from "@/lib/services/recipe-service";
 import {
   favoritesService,
-  INITIAL_FAVORITES,
   INITIAL_COLLECTIONS,
 } from "@/lib/services/favorites-service";
 
@@ -19,6 +23,9 @@ export interface FavoriteItem {
 }
 
 interface FavoritesContextType {
+  isLoading: boolean;
+  error: string;
+  refreshFavorites: () => void;
   favorites: string[];
   favoriteItems: FavoriteItem[];
   collections: string[];
@@ -33,20 +40,86 @@ interface FavoritesContextType {
 const FavoritesContext = React.createContext<FavoritesContextType | undefined>(undefined);
 
 export function FavoritesProvider({ children }: { children: React.ReactNode }) {
-  const [favoriteItems, setFavoriteItems] = React.useState<FavoriteItem[]>(INITIAL_FAVORITES);
+  const { user, isRestoringSession } = useAuth();
+  return <FavoritesSessionProvider key={isRestoringSession ? "restoring" : user?.id ?? "guest"}>{children}</FavoritesSessionProvider>;
+}
+
+function FavoritesSessionProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [favoriteItems, setFavoriteItems] = React.useState<FavoriteItem[]>([]);
+  const { user, isRestoringSession } = useAuth();
+  const [error, setError] = React.useState("");
+  const [isLoading, setIsLoading] = React.useState(true);
+  const ready = React.useRef(false);
+  const [revision, setRevision] = React.useState(0);
+  const owner = user?.id;
+  const { getRecipeById } = useRecipes();
+  const mounted = React.useRef(true);
+  React.useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+  const pending = React.useRef(new Set<string>());
   const [collections, setCollections] = React.useState<string[]>(INITIAL_COLLECTIONS);
 
   React.useEffect(() => {
-    favoritesService.getFavorites().then((res) => {
-      if (res.data) setFavoriteItems(res.data);
-    });
+    if (isRestoringSession) return;
+    ready.current = false;
+    const controller = new AbortController();
+    let active = true;
+    async function load() {
+      let items: FavoriteItem[] = [];
+      if (owner) {
+        let page = 1;
+        let totalPages = 1;
+        do {
+          const result = await backendFetch<{ items: BackendRecipeSummary[]; totalPages: number }>(
+            "/api/v1/users/me/favorites?page=" + page + "&pageSize=100",
+            { cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]) });
+          if (!active) return;
+          if (!result) {
+            setFavoriteItems([]);
+            setError("Chưa tải được danh sách yêu thích. Hãy thử đăng nhập lại.");
+            return;
+          }
+          items = items.concat(result.items.map((recipe) => ({
+            id: recipe.id, recipeId: recipe.id, recipe: mapBackendToRecipe(recipe),
+            createdAt: "", collectionName: "Hôm nay nấu",
+          })));
+          totalPages = result.totalPages;
+          page++;
+        } while (page <= totalPages);
+      }
+      if (active) {
+        setFavoriteItems(items);
+        ready.current = true;
+        setError("");
+      }
+    }
+    void load().catch(() => {
+      if (active) setError("Không tải được danh sách yêu thích. Vui lòng thử lại.");
+    }).finally(() => { if (active) setIsLoading(false); });
     favoritesService.getCollections().then((res) => {
-      if (res.data) setCollections(res.data);
+      if (active && res.data) setCollections(res.data);
     });
-  }, []);
+    return () => { active = false; controller.abort(); };
+  }, [owner, isRestoringSession, revision]);
 
-  const saveToStorage = (items: FavoriteItem[]) => {
-    favoritesService.saveFavorites(items);
+  const persistFavorite = (recipeId: string, added: boolean, previous: FavoriteItem | undefined) => {
+    if (!owner) return;
+    pending.current.add(recipeId);
+    void backendFetch("/api/v1/users/me/favorites/" + encodeURIComponent(recipeId), {
+      method: added ? "PUT" : "DELETE",
+      signal: AbortSignal.timeout(30_000),
+    }).then((result) => {
+      pending.current.delete(recipeId);
+      if (!mounted.current || result !== null) return;
+      setFavoriteItems((items) => previous
+        ? [previous, ...items.filter((item) => item.recipeId !== recipeId)]
+        : items.filter((item) => item.recipeId !== recipeId));
+      setError("Chưa xác nhận được thay đổi yêu thích. Hãy tải lại trang để kiểm tra.");
+    });
   };
 
   const saveCollectionsToStorage = (colls: string[]) => {
@@ -62,41 +135,28 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleFavorite = (recipeId: string, customRecipe?: Recipe): boolean => {
+    if (isRestoringSession) return false;
+    if (!owner) {
+      router.push("/login?returnUrl=" + encodeURIComponent(pathname));
+      return false;
+    }
+    if (!ready.current) {
+      setError("Danh sách yêu thích chưa tải xong. Hãy thử lại sau khi tải dữ liệu.");
+      return isFavorited(recipeId);
+    }
+    if (owner && !isCloudRecipe(recipeId)) { setError("Món này chưa có trên máy chủ để lưu vào tài khoản."); return isFavorited(recipeId); }
+    if (pending.current.has(recipeId)) return isFavorited(recipeId);
     const existingIndex = favoriteItems.findIndex((item) => item.recipeId === recipeId);
     if (existingIndex >= 0) {
-      const next = favoriteItems.filter((item) => item.recipeId !== recipeId);
-      setFavoriteItems(next);
-      saveToStorage(next);
+      setFavoriteItems((items) => items.filter((item) => item.recipeId !== recipeId));
+      persistFavorite(recipeId, false, favoriteItems[existingIndex]);
       return false;
     } else {
-      const recipeToSave =
-        customRecipe ||
-        MASTER_RECIPES.find((r) => r.id === recipeId) || {
-          id: recipeId,
-          title: "Món ăn truyền thống",
-          description: "Món ngon đậm vị gia đình",
-          author: { id: "a1", name: "Bếp Nhà", avatarText: "BN" },
-          region: "Nam" as const,
-          category: "kho-rim" as const,
-          categoryName: "Món Kho",
-          difficulty: "Dễ làm" as const,
-          difficultyBadgeColor: "secondary" as const,
-          prepTimeMinutes: 15,
-          cookTimeMinutes: 30,
-          totalTime: "45 phút",
-          servings: 4,
-          calories: 320,
-          rating: 4.8,
-          reviewsCount: 1,
-          bookmarksCount: 1,
-          image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800",
-          imageAlt: "Món ăn truyền thống",
-          tags: ["Món ngon"],
-          dietTags: ["Ít dầu mỡ" as const],
-          ingredients: [],
-          steps: [],
-          reviews: [],
-        };
+      const recipeToSave = customRecipe || getRecipeById(recipeId);
+      if (!recipeToSave) {
+        setError("Chưa tải được thông tin món ăn. Hãy mở công thức rồi thử lưu lại.");
+        return false;
+      }
 
       const newItem: FavoriteItem = {
         id: "fav-" + Date.now(),
@@ -105,17 +165,19 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         collectionName: "Hôm nay nấu",
         createdAt: "Vừa xong",
       };
-      const next = [newItem, ...favoriteItems];
-      setFavoriteItems(next);
-      saveToStorage(next);
+      setFavoriteItems((items) => [newItem, ...items.filter((item) => item.recipeId !== recipeId)]);
+      persistFavorite(recipeId, true, undefined);
       return true;
     }
   };
 
   const removeFavorite = (recipeId: string) => {
-    const next = favoriteItems.filter((item) => item.recipeId !== recipeId);
-    setFavoriteItems(next);
-    saveToStorage(next);
+    if (!owner || isRestoringSession) return;
+    if (!ready.current) return;
+    if (pending.current.has(recipeId)) return;
+    const previous = favoriteItems.find((item) => item.recipeId === recipeId);
+    setFavoriteItems((items) => items.filter((item) => item.recipeId !== recipeId));
+    persistFavorite(recipeId, false, previous);
   };
 
   const addCollection = (name: string) => {
@@ -127,24 +189,22 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   };
 
   const assignCollection = (recipeId: string, collectionName: string) => {
-    const next = favoriteItems.map((item) =>
-      item.recipeId === recipeId ? { ...item, collectionName } : item
-    );
-    setFavoriteItems(next);
-    saveToStorage(next);
+    setFavoriteItems((items) => items.map((item) => item.recipeId === recipeId ? { ...item, collectionName } : item));
   };
 
   const updateNote = (recipeId: string, note: string) => {
-    const next = favoriteItems.map((item) =>
-      item.recipeId === recipeId ? { ...item, note } : item
-    );
-    setFavoriteItems(next);
-    saveToStorage(next);
+    setFavoriteItems((items) => items.map((item) => item.recipeId === recipeId ? { ...item, note } : item));
   };
 
   return (
     <FavoritesContext.Provider
       value={{
+        isLoading,
+        error,
+        refreshFavorites: () => {
+          if (pending.current.size > 0) return;
+          setError(""); setIsLoading(true); setRevision((value) => value + 1);
+        },
         favorites,
         favoriteItems,
         collections,
@@ -157,6 +217,13 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+      {error && <div role="alert" className="fixed bottom-5 left-5 z-50 max-w-sm rounded-xl bg-error-container p-4 text-on-error-container">
+        {error}<button type="button" className="ml-3 underline" onClick={() => {
+          if (pending.current.size > 0) { setError("Đang lưu thay đổi yêu thích. Hãy chờ trước khi tải lại."); return; }
+          setError(""); setRevision((value) => value + 1);
+        }}>Tải lại</button>
+        <button type="button" className="ml-3 underline" onClick={() => setError("")}>Đóng</button>
+      </div>}
     </FavoritesContext.Provider>
   );
 }

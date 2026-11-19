@@ -1,21 +1,23 @@
 "use client";
 
 import * as React from "react";
+import { authRequest } from "@/lib/services/auth-request";
 import { User } from "@/lib/types";
 import { safeStorage } from "@/lib/services/storage";
-import { backendFetch, setAccessToken } from "@/lib/services/api-client";
+import { backendFetch, setAccessToken, subscribeToSession, waitForSessionRequests, endSession, restoreSession } from "@/lib/services/api-client";
 
 export type DemoPersona = "guest" | "member" | "admin";
 
 interface AuthContextType {
   user: User | null;
   isLoggedIn: boolean;
+  isRestoringSession: boolean;
   isDemoMode: boolean;
   currentPersona: DemoPersona;
-  login: (email: string, name?: string, role?: "user" | "admin", password?: string) => void;
+  login: (email: string, password: string) => Promise<User>;
   loginAs: (persona: DemoPersona) => void;
   logout: () => void;
-  updateProfile: (data: Partial<User>) => void;
+  updateProfile: (data: { name: string }) => Promise<void>;
 }
 
 export const DEMO_USERS: Record<"member" | "admin", User> = {
@@ -70,103 +72,88 @@ interface BackendAuthResponse {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [isLoggedIn, setIsLoggedIn] = React.useState<boolean>(false);
+  const [isRestoringSession, setIsRestoringSession] = React.useState(true);
   const [currentPersona, setCurrentPersona] = React.useState<DemoPersona>("guest");
   const isDemoMode = false;
 
-  React.useEffect(() => {
-    try {
-      const storedUserData = safeStorage.getJSON<User | null>(AUTH_USER_KEY, null);
-      if (storedUserData) {
-        setUser(storedUserData);
-        setIsLoggedIn(true);
-        setCurrentPersona(storedUserData.role === "admin" ? "admin" : "member");
-      }
-    } catch (e) {
-      console.warn("[AuthContext] Could not load user from safeStorage", e);
-    }
+  const initialSession = React.useRef<Promise<BackendAuthResponse | null> | null>(null);
+
+  const applySession = React.useCallback((session: BackendAuthResponse) => {
+    const { user: profile } = session;
+    const isAdmin = profile.roles?.includes("Admin") === true;
+    const name = profile.displayName || profile.email;
+    const verifiedUser: User = {
+      id: profile.id,
+      name,
+      email: profile.email,
+      avatarText: name.slice(0, 2).toUpperCase(),
+      role: isAdmin ? "admin" : "user",
+    };
+    setAccessToken(session.accessToken);
+    setUser(verifiedUser);
+    setIsLoggedIn(true);
+    setCurrentPersona(isAdmin ? "admin" : "member");
+    return verifiedUser;
   }, []);
 
+  React.useEffect(() => {
+    let active = true;
+    const unsubscribe = subscribeToSession((session) => {
+      if (!active) return;
+      if (session) applySession(session);
+      else {
+        setUser(null);
+        setIsLoggedIn(false);
+        setCurrentPersona("guest");
+      }
+    });
+    safeStorage.removeItem(AUTH_USER_KEY);
+    initialSession.current ??= restoreSession();
+    void initialSession.current.then((session) => {
+      if (!active) return;
+      if (session?.accessToken) applySession(session);
+      setIsRestoringSession(false);
+    });
+    return () => { active = false; unsubscribe(); };
+  }, [applySession]);
+
   const loginAs = (persona: DemoPersona) => {
-    if (persona === "guest") {
-      setUser(null);
-      setIsLoggedIn(false);
-      setCurrentPersona("guest");
-      setAccessToken(null);
-      safeStorage.removeItem(AUTH_USER_KEY);
-      return;
-    }
-
-    const templateUser = DEMO_USERS[persona];
-    setUser(templateUser);
-    setIsLoggedIn(true);
-    setCurrentPersona(persona);
-    safeStorage.setJSON(AUTH_USER_KEY, templateUser);
+    if (persona === "admin" || isLoggedIn || persona === "guest") return;
+    setCurrentPersona("member");
   };
 
-  const login = (
-    email: string,
-    name?: string,
-    role: "user" | "admin" = "user",
-    password?: string
-  ) => {
-    const fallbackTemplate = DEMO_USERS[role];
-    const newUser: User = {
-      ...fallbackTemplate,
-      id: role === "admin" ? DEMO_USERS.admin.id : DEMO_USERS.member.id,
-      email: email.trim() || fallbackTemplate.email,
-      name: name?.trim() || email.split("@")[0].toUpperCase() || fallbackTemplate.name,
-      avatarText: (name?.trim() || email).slice(0, 2).toUpperCase(),
-      role: role,
-    };
-
-    setUser(newUser);
-    setIsLoggedIn(true);
-    setCurrentPersona(role === "admin" ? "admin" : "member");
-    safeStorage.setJSON(AUTH_USER_KEY, newUser);
-
-    if (password) {
-      backendFetch<BackendAuthResponse>("/api/v1/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email: email.trim(), password }),
-      }).then((res) => {
-        if (res?.accessToken) {
-          setAccessToken(res.accessToken);
-          const isAdmin = res.user?.roles?.includes("Admin") || role === "admin";
-          const verifiedUser: User = {
-            ...newUser,
-            id: res.user.id,
-            email: res.user.email,
-            name: res.user.displayName || newUser.name,
-            role: isAdmin ? "admin" : "user",
-          };
-          setUser(verifiedUser);
-          setCurrentPersona(isAdmin ? "admin" : "member");
-          safeStorage.setJSON(AUTH_USER_KEY, verifiedUser);
-        }
-      });
+  const login = async (email: string, password: string) => {
+    await initialSession.current;
+    await waitForSessionRequests();
+    const session = await authRequest<BackendAuthResponse>("login", { email: email.trim(), password });
+    if (!session?.accessToken) {
+      throw new Error("Không thể đăng nhập. Kiểm tra email, mật khẩu và kết nối API.");
     }
+    return applySession(session);
   };
-
   const logout = () => {
-    backendFetch("/api/v1/auth/logout", { method: "POST" });
-    setAccessToken(null);
+    void endSession();
     setUser(null);
     setIsLoggedIn(false);
     setCurrentPersona("guest");
     safeStorage.removeItem(AUTH_USER_KEY);
   };
 
-  const updateProfile = (data: Partial<User>) => {
-    if (!user) return;
-    const updated = { ...user, ...data };
-    setUser(updated);
-    safeStorage.setJSON(AUTH_USER_KEY, updated);
-    if (data.name) {
-      backendFetch("/api/v1/users/me", {
-        method: "PUT",
-        body: JSON.stringify({ displayName: data.name }),
-      });
-    }
+  const updateProfile = async (data: { name: string }) => {
+    if (!user) throw new Error("Vui lòng đăng nhập lại.");
+    const ownerId = user.id;
+    const profile = await backendFetch<{ id: string; displayName: string; email: string }>("/api/v1/users/me", {
+      method: "PUT",
+      body: JSON.stringify({ displayName: data.name.trim() }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!profile) throw new Error("Chưa xác nhận được thay đổi. Kiểm tra kết nối và làm mới để đối chiếu.");
+    setUser((current) => current?.id === ownerId ? {
+      ...current,
+      name: profile.displayName,
+      avatarText: profile.displayName.slice(0, 2).toUpperCase(),
+      email: profile.email,
+    } : current);
   };
 
   return (
@@ -174,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         isLoggedIn,
+        isRestoringSession,
         isDemoMode,
         currentPersona,
         login,

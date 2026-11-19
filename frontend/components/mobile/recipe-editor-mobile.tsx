@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
+
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 
@@ -35,7 +35,7 @@ export function RecipeEditorMobile() {
   const [difficulty, setDifficulty] = React.useState<"easy" | "medium" | "hard">("medium");
 
   // Stepper state
-  const [currentStepIndex, setCurrentStepIndex] = React.useState(1);
+  const [, setCurrentStepIndex] = React.useState(1);
 
   // Ingredients state
   const [ingredients, setIngredients] = React.useState<MobileIngredient[]>([

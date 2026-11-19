@@ -3,14 +3,20 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/context/auth-context";
+import { recipePlannerLink } from "@/lib/services/planning-api";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Icon } from "@/components/ui/icon";
+import type { Recipe } from "@/lib/types";
 import { useRecipes } from "@/lib/context/recipes-context";
 import { useFavorites } from "@/lib/context/favorites-context";
 import { useShoppingList } from "@/lib/context/shopping-list-context";
 
 export default function IngredientSearchPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const { recipes } = useRecipes();
   const { isFavorited, toggleFavorite: doToggleFavorite } = useFavorites();
   const { addItem } = useShoppingList();
@@ -31,7 +37,7 @@ export default function IngredientSearchPage() {
     setTimeout(() => setToastMsg(null), 3000);
   };
 
-  const handleToggleFavorite = (recipeId: string, recipeObj: any) => {
+  const handleToggleFavorite = (recipeId: string, recipeObj: Recipe) => {
     const next = doToggleFavorite(recipeId, recipeObj);
     if (next) {
       showToast(`Đã lưu "${recipeObj.title}" vào mục yêu thích!`);
@@ -595,6 +601,7 @@ export default function IngredientSearchPage() {
                                   <button
                                     type="button"
                                     onClick={() => {
+                                      if (user) { router.push(recipePlannerLink(recipe.id)); return; }
                                       addItem({
                                         name: recipe.missingItem,
                                         amount: "1 phần",
@@ -606,7 +613,7 @@ export default function IngredientSearchPage() {
                                     className="px-2.5 py-1 rounded-lg bg-surface-container-highest text-primary font-body-sm text-body-sm font-medium hover:bg-primary hover:text-on-primary transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
                                   >
                                     <Icon name="add" size={14} />
-                                    <span>Thêm {recipe.missingItem?.toLowerCase()} vào giỏ</span>
+                                    <span>{user ? "Lập thực đơn để đi chợ" : `Thêm ${recipe.missingItem?.toLowerCase()} vào giỏ`}</span>
                                   </button>
                                 </div>
                               </>

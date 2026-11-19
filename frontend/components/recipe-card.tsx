@@ -3,6 +3,8 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useFavorites } from "@/lib/context/favorites-context";
+import { useRecipes } from "@/lib/context/recipes-context";
 import { Icon } from "@/components/ui/icon";
 
 export interface RecipeCardProps {
@@ -35,33 +37,16 @@ export function RecipeCard({
   onQuickView,
   onBookmarkToggle,
 }: RecipeCardProps) {
-  const [isBookmarked, setIsBookmarked] = React.useState(false);
-
-  // Load bookmark state from localStorage
-  React.useEffect(() => {
-    try {
-      const saved = localStorage.getItem(`recipe_bookmarked_${id}`);
-      if (saved === "true") {
-        setIsBookmarked(true);
-      }
-    } catch {
-      // Ignore
-    }
-  }, [id]);
-
-  const toggleBookmark = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const nextState = !isBookmarked;
-    setIsBookmarked(nextState);
-    try {
-      localStorage.setItem(`recipe_bookmarked_${id}`, String(nextState));
-    } catch {
-      // Ignore
-    }
-    if (onBookmarkToggle) {
-      onBookmarkToggle(id, nextState);
-    }
+  const { isFavorited, toggleFavorite } = useFavorites();
+  const { recipes } = useRecipes();
+  const recipe = recipes.find((item) => item.id === String(id));
+  const isBookmarked = isFavorited(String(id));
+  const toggleBookmark = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!recipe) return;
+    const nextState = toggleFavorite(recipe.id, recipe);
+    onBookmarkToggle?.(id, nextState);
   };
 
   const initial = authorInitial || authorName.charAt(0).toUpperCase();
@@ -87,6 +72,7 @@ export function RecipeCard({
           <button
             type="button"
             onClick={toggleBookmark}
+            disabled={!recipe}
             title={isBookmarked ? "Bỏ lưu công thức" : "Lưu vào yêu thích"}
             className={`absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-surface-container-lowest/90 backdrop-blur-sm flex items-center justify-center transition-colors shadow-xs cursor-pointer ${
               isBookmarked ? "text-primary" : "text-outline hover:text-primary"

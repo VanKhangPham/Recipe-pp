@@ -3,18 +3,17 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
-import { useRecipes } from "@/lib/context/recipes-context";
-import { MASTER_RECIPES } from "@/lib/data/recipes";
+import type { Recipe } from "@/lib/types";
+import { planningRequest, isCloudRecipe } from "@/lib/services/planning-api";
+import { mapBackendToRecipe, recipeService, type BackendRecipeDetail } from "@/lib/services/recipe-service";
+import { useAuth } from "@/lib/context/auth-context";
 
-function CookingModeContent() {
-  const params = useParams<{ id: string }>();
-  const router = useRouter();
-  const { getRecipeById } = useRecipes();
 
-  const recipeId = params.id || "ca-loc-kho-to";
-  const recipe = getRecipeById(recipeId) || MASTER_RECIPES[0];
+function CookingModeContent({ recipe }: { recipe: Recipe }) {
+
+  const recipeId = recipe.id;
 
   // Map recipe.steps to the shape expected by the UI
   const steps = recipe.steps.map((step) => ({
@@ -72,8 +71,11 @@ function CookingModeContent() {
         setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
       }, 1000);
     } else if (secondsLeft === 0 && isTimerRunning) {
-      setIsTimerRunning(false);
-      showToast("Chuông báo: Hết giờ bước nấu!");
+      const timer = window.setTimeout(() => {
+        setIsTimerRunning(false);
+        showToast("Chuông báo: Hết giờ bước nấu!");
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -564,7 +566,42 @@ export default function CookingModePage() {
         <div className="text-inverse-on-surface font-headline-sm text-headline-sm animate-pulse">Đang tải chế độ nấu...</div>
       </div>
     }>
-      <CookingModeContent />
+      <CookingModeLoader />
     </React.Suspense>
   );
+}
+
+function CookingModeLoader() {
+  const { id } = useParams<{ id: string }>();
+  const { user, isRestoringSession } = useAuth();
+  if (isRestoringSession) return <p role="status" className="p-6">Đang kiểm tra phiên đăng nhập…</p>;
+  return <CookingModeRequest key={id + ":" + (user?.id ?? "guest")} id={id} />;
+}
+function CookingModeRequest({ id }: { id: string }) {
+  const [recipe, setRecipe] = React.useState<Recipe | null>(null);
+  const [error, setError] = React.useState("");
+  const [revision, setRevision] = React.useState(0);
+  React.useEffect(() => {
+    const controller = new AbortController();
+    async function loadRecipe() {
+      if (!isCloudRecipe(id)) return (await recipeService.getRecipeById(id)).data;
+      const detail = await planningRequest<BackendRecipeDetail>("recipes/" + encodeURIComponent(id), { signal: controller.signal });
+      return mapBackendToRecipe(detail.summary, detail);
+    }
+    loadRecipe().then((loaded) => {
+      if (controller.signal.aborted) return;
+      if (!loaded) { setError("Không tìm thấy công thức này."); return; }
+      if (!loaded.steps.length) { setError("Công thức chưa có bước nấu."); return; }
+      setRecipe(loaded);
+    }).catch(() => {
+      if (!controller.signal.aborted) setError("Không tải được công thức. Kiểm tra kết nối và quyền xem công thức.");
+    });
+    return () => controller.abort();
+  }, [id, revision]);
+  if (recipe) return <CookingModeContent recipe={recipe} />;
+  return <main className="space-y-4 p-6">
+    <p role={error ? "alert" : "status"}>{error || "Đang tải công thức…"}</p>
+    {error && <button className="rounded border p-3" onClick={() => { setError(""); setRevision((value) => value + 1); }}>Thử lại</button>}
+    <Link className="ml-4 underline" href={"/recipes/" + id}>Về công thức</Link>
+  </main>;
 }

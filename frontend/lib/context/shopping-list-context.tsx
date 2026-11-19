@@ -25,7 +25,7 @@ const ShoppingListContext = React.createContext<ShoppingListContextType | undefi
 export function ShoppingListProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = React.useState<ShoppingItem[]>(INITIAL_SHOPPING_ITEMS);
   const [keepScreenOn, setKeepScreenOn] = React.useState(false);
-  const wakeLockRef = React.useRef<any>(null);
+  const wakeLockRef = React.useRef<WakeLockSentinel | null>(null);
 
   React.useEffect(() => {
     shoppingService.getShoppingItems().then((res) => {
@@ -150,13 +150,12 @@ export function ShoppingListProvider({ children }: { children: React.ReactNode }
 
   const toggleKeepScreenOn = async (): Promise<boolean> => {
     if (typeof window === "undefined" || !("wakeLock" in navigator)) {
-      setKeepScreenOn(!keepScreenOn);
-      return !keepScreenOn;
+      return false;
     }
 
     try {
       if (!keepScreenOn) {
-        const lock = await (navigator as any).wakeLock.request("screen");
+        const lock = await navigator.wakeLock.request("screen");
         wakeLockRef.current = lock;
         lock.addEventListener("release", () => {
           setKeepScreenOn(false);
@@ -173,8 +172,8 @@ export function ShoppingListProvider({ children }: { children: React.ReactNode }
       }
     } catch (err) {
       console.warn("WakeLock error:", err);
-      setKeepScreenOn(!keepScreenOn);
-      return !keepScreenOn;
+      setKeepScreenOn(false);
+      return false;
     }
   };
 

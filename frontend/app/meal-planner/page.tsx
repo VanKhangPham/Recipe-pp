@@ -1,4 +1,5 @@
 "use client";
+import { AccountPlanningGate } from "@/components/account-planning";
 
 import * as React from "react";
 import Image from "next/image";
@@ -32,10 +33,11 @@ interface DayPlan {
 
 const INITIAL_DAYS: DayPlan[] = [
   {
-    date: "18 Thg 03",
+    date: "16 Thg 11",
     dayName: "Thứ Hai",
     calories: "1.820 kcal",
     caloriePercent: 91,
+    isToday: true,
     breakfast: {
       id: "m1",
       name: "Phở bò tái lăn",
@@ -65,7 +67,7 @@ const INITIAL_DAYS: DayPlan[] = [
     },
   },
   {
-    date: "19 Thg 03",
+    date: "17 Thg 11",
     dayName: "Thứ Ba",
     calories: "1.750 kcal",
     caloriePercent: 88,
@@ -92,11 +94,10 @@ const INITIAL_DAYS: DayPlan[] = [
     },
   },
   {
-    date: "20 Thg 03",
+    date: "18 Thg 11",
     dayName: "Thứ Tư",
     calories: "1.890 kcal",
     caloriePercent: 95,
-    isToday: true,
     breakfast: {
       id: "m8",
       name: "Bún mọc sườn non",
@@ -126,7 +127,7 @@ const INITIAL_DAYS: DayPlan[] = [
     },
   },
   {
-    date: "21 Thg 03",
+    date: "19 Thg 11",
     dayName: "Thứ Năm",
     calories: "1.690 kcal",
     caloriePercent: 84,
@@ -153,7 +154,7 @@ const INITIAL_DAYS: DayPlan[] = [
     },
   },
   {
-    date: "22 Thg 03",
+    date: "20 Thg 11",
     dayName: "Thứ Sáu",
     calories: "1.780 kcal",
     caloriePercent: 89,
@@ -186,7 +187,7 @@ const INITIAL_DAYS: DayPlan[] = [
     },
   },
   {
-    date: "23 Thg 03",
+    date: "21 Thg 11",
     dayName: "Thứ Bảy",
     calories: "1.920 kcal",
     caloriePercent: 96,
@@ -212,7 +213,7 @@ const INITIAL_DAYS: DayPlan[] = [
     },
   },
   {
-    date: "24 Thg 03",
+    date: "22 Thg 11",
     dayName: "Chủ Nhật",
     calories: "1.480 kcal",
     caloriePercent: 74,
@@ -271,7 +272,7 @@ const DRAWER_RECIPES = [
   },
 ];
 
-export default function MealPlannerPage() {
+function GuestMealPlannerPage() {
   const router = useRouter();
   const { generateShoppingList } = useMealPlanner();
   const [showBanner, setShowBanner] = React.useState(true);
@@ -377,7 +378,7 @@ export default function MealPlannerPage() {
                   <div className="px-space-md py-1 flex items-center gap-2">
                     <Icon name="calendar_month" className="text-[18px] text-primary" />
                     <span className="font-title-md text-title-md text-on-surface tracking-tight">
-                      Tuần này: 18/03 – 24/03/2024
+                      Tuần này: 16/11 – 22/11/2026
                     </span>
                   </div>
                   <button
@@ -973,4 +974,8 @@ export default function MealPlannerPage() {
     </div>
     </>
   );
+}
+
+export default function MealPlannerPage() {
+  return <AccountPlanningGate kind="meals"><GuestMealPlannerPage /></AccountPlanningGate>;
 }

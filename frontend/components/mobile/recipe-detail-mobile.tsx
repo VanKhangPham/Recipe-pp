@@ -8,25 +8,49 @@ import { Icon } from "@/components/ui/icon";
 import { useRecipes } from "@/lib/context/recipes-context";
 import { useFavorites } from "@/lib/context/favorites-context";
 import { useShoppingList } from "@/lib/context/shopping-list-context";
-import { MASTER_RECIPES } from "@/lib/data/recipes";
+import { useAuth } from "@/lib/context/auth-context";
+import { recipePlannerLink } from "@/lib/services/planning-api";
+import type { Recipe } from "@/lib/types";
 
-export function RecipeDetailMobile({ recipeId = "ca-loc-kho-to" }: { recipeId?: string }) {
+export function RecipeDetailMobile({ recipe, onReviewSaved, reviewsLoading, reviewsError }: { recipe: Recipe; onReviewSaved: () => void; reviewsLoading: boolean; reviewsError: string }) {
   const router = useRouter();
-  const { getRecipeById } = useRecipes();
+  const { user } = useAuth();
+  const { addReview } = useRecipes();
   const { isFavorited, toggleFavorite: doToggleFavorite } = useFavorites();
   const { addIngredientsFromRecipe } = useShoppingList();
 
-  const recipe = React.useMemo(() => {
-    return getRecipeById(recipeId) || MASTER_RECIPES[0];
-  }, [getRecipeById, recipeId]);
+  const [reviewText, setReviewText] = React.useState("");
+  const [reviewRating, setReviewRating] = React.useState(5);
+  const [savingReview, setSavingReview] = React.useState(false);
+  const [reviewMessage, setReviewMessage] = React.useState("");
+  const reviewLock = React.useRef(false);
+  async function submitReview(event: React.FormEvent) {
+    event.preventDefault();
+    if (!user || reviewLock.current) return;
+    reviewLock.current = true;
+    setSavingReview(true);
+    setReviewMessage("");
+    try {
+      await addReview(recipe.id, {
+        userName: user.name, userAvatarText: user.avatarText ?? "",
+        rating: reviewRating, content: reviewText.trim(),
+      });
+      setReviewText("");
+      setReviewMessage("Đã lưu đánh giá của bạn.");
+      onReviewSaved();
+    } catch (error) {
+      setReviewMessage(error instanceof Error ? error.message : "Không gửi được đánh giá.");
+    } finally {
+      reviewLock.current = false;
+      setSavingReview(false);
+    }
+  }
 
   // Servings state
   const baseServings = recipe.servings || 4;
   const [servings, setServings] = React.useState(baseServings);
 
-  React.useEffect(() => {
-    setServings(recipe.servings || 4);
-  }, [recipe.servings]);
+
 
   // Ingredients checked state
   const [checkedIngredients, setCheckedIngredients] = React.useState<Record<string, boolean>>({});
@@ -110,6 +134,7 @@ export function RecipeDetailMobile({ recipeId = "ca-loc-kho-to" }: { recipeId?: 
   };
 
   const addAllToShoppingList = () => {
+    if (user) { router.push(recipePlannerLink(recipe.id, servings)); return; }
     addIngredientsFromRecipe(
       recipe.title,
       recipe.ingredients.map((ing) => ({
@@ -334,7 +359,7 @@ export function RecipeDetailMobile({ recipeId = "ca-loc-kho-to" }: { recipeId?: 
                 onClick={addAllToShoppingList}
               >
                 <Icon name="playlist_add" size={18} />
-                Thêm vào giỏ
+                {user ? "Lập thực đơn để đi chợ" : "Thêm vào giỏ"}
               </button>
             </div>
             <div className="flex flex-col gap-2">
@@ -468,7 +493,22 @@ export function RecipeDetailMobile({ recipeId = "ca-loc-kho-to" }: { recipeId?: 
               </div>
             </div>
 
-            {recipe.reviews && recipe.reviews.length > 0 ? (
+            {user ? (
+              <form onSubmit={submitReview} className="space-y-3 rounded-xl border border-outline-variant p-4">
+                <label className="block">Điểm đánh giá
+                  <select className="ml-3 rounded border p-2" value={reviewRating} disabled={savingReview} onChange={(event) => setReviewRating(Number(event.target.value))}>
+                    {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating} sao</option>)}
+                  </select>
+                </label>
+                <label className="block">Nhận xét
+                  <textarea className="mt-2 w-full rounded border p-3" required maxLength={2000} rows={3} value={reviewText} disabled={savingReview} onChange={(event) => setReviewText(event.target.value)} />
+                </label>
+                <button className="rounded-xl bg-primary px-4 py-2 text-on-primary disabled:opacity-50" disabled={savingReview || !reviewText.trim()}>{savingReview ? "Đang gửi…" : "Gửi đánh giá"}</button>
+                {reviewMessage && <p role="status">{reviewMessage}</p>}
+              </form>
+            ) : <Link href="/login" className="underline">Đăng nhập để đánh giá</Link>}
+
+            {reviewsLoading ? <p role="status">Đang tải đánh giá…</p> : reviewsError ? <p role="alert">{reviewsError}</p> : recipe.reviews && recipe.reviews.length > 0 ? (
               recipe.reviews.map((rev) => (
                 <div key={rev.id} className="p-4 rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col gap-2.5">
                   <div className="flex items-center justify-between">

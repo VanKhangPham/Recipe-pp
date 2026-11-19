@@ -14,29 +14,69 @@ import { useFavorites } from "@/lib/context/favorites-context";
 import { useShoppingList } from "@/lib/context/shopping-list-context";
 import { useMealPlanner } from "@/lib/context/meal-planner-context";
 import { useAuth } from "@/lib/context/auth-context";
-import { MASTER_RECIPES } from "@/lib/data/recipes";
+import { addRecipeToCurrentWeek, recipePlannerLink } from "@/lib/services/planning-api";
+import { backendFetch } from "@/lib/services/api-client";
+import type { Recipe, Review } from "@/lib/types";
+import { recipeService, mapBackendToRecipe, type BackendRecipeDetail } from "@/lib/services/recipe-service";
+import { planningRequest, PlanningError, isCloudRecipe } from "@/lib/services/planning-api";
 
-function RecipeDetailContent() {
-  const params = useParams<{ id: string }>();
+function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
   const router = useRouter();
 
-  const { getRecipeById, addReview, recipes } = useRecipes();
+  const { addReview, recipes } = useRecipes();
   const { isFavorited: checkFavorited, toggleFavorite: doToggleFavorite } = useFavorites();
   const { addIngredientsFromRecipe } = useShoppingList();
   const { addMealToPlan } = useMealPlanner();
   const { user } = useAuth();
 
-  const recipe = React.useMemo(() => {
-    return getRecipeById(params.id) || MASTER_RECIPES[0];
-  }, [getRecipeById, params.id]);
+  React.useEffect(() => {
+    if (!isCloudRecipe(recipe.id) || recipe.status !== "published") return;
+    // Deferring until mount settles avoids recording React's Strict Mode probe.
+    const timer = window.setTimeout(() => {
+      void backendFetch(`/api/v1/recipes/${recipe.id}/views`, { method: "POST" });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [recipe.id, recipe.status]);
+
+  const [savedReviews, setSavedReviews] = React.useState<Review[]>([]);
+  const [reviewsError, setReviewsError] = React.useState("");
+  const [reviewsLoading, setReviewsLoading] = React.useState(true);
+  const [reviewRevision, setReviewRevision] = React.useState(0);
+  React.useEffect(() => {
+    const controller = new AbortController();
+    async function loadReviews() {
+      const items: Review[] = [];
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const result = await backendFetch<{
+          items: { id: string; author: { displayName: string }; rating: number; comment: string; createdAt: string }[];
+          totalPages: number;
+        }>(`/api/v1/recipes/${recipe.id}/reviews?page=${page}&pageSize=100`, {
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30000)]),
+        });
+        if (controller.signal.aborted) return;
+        if (!result) { setReviewsError("Không tải được đánh giá. Vui lòng thử tải lại trang."); setReviewsLoading(false); return; }
+        items.push(...result.items.map((item) => ({
+          id: item.id, userName: item.author.displayName,
+          userAvatarText: item.author.displayName.slice(0, 2).toUpperCase(),
+          rating: item.rating, content: item.comment, createdAt: item.createdAt,
+        })));
+        totalPages = result.totalPages;
+        page++;
+      } while (page <= totalPages);
+      if (!controller.signal.aborted) { setSavedReviews(items); setReviewsError(""); setReviewsLoading(false); }
+    }
+    if (isCloudRecipe(recipe.id)) void loadReviews();
+    else Promise.resolve().then(() => { if (!controller.signal.aborted) { setSavedReviews(recipe.reviews); setReviewsLoading(false); } });
+    return () => controller.abort();
+  }, [recipe.id, recipe.reviews, reviewRevision]);
 
   // Servings state
   const baseServings = recipe.servings || 4;
   const [servings, setServings] = React.useState(baseServings);
 
-  React.useEffect(() => {
-    setServings(recipe.servings || 4);
-  }, [recipe.servings]);
+
 
   // Follow author state
   const [isFollowing, setIsFollowing] = React.useState(false);
@@ -49,6 +89,8 @@ function RecipeDetailContent() {
   const [timerName, setTimerName] = React.useState<string>("");
   const [isTimerRunning, setIsTimerRunning] = React.useState(false);
 
+  const [savingPlan, setSavingPlan] = React.useState(false);
+  const planLock = React.useRef(false);
   // Meal plan modal state
   const [isMealPlanOpen, setIsMealPlanOpen] = React.useState(false);
   const [selectedPlanDay, setSelectedPlanDay] = React.useState<"T2" | "T3" | "T4" | "T5" | "T6" | "T7" | "CN">("T2");
@@ -60,7 +102,7 @@ function RecipeDetailContent() {
 
   // Login required dialog state
   const [isLoginDialogOpen, setIsLoginDialogOpen] = React.useState(false);
-  const [loginAction, setLoginAction] = React.useState<"publish" | "comment" | "follow">("comment");
+  const [loginAction] = React.useState<"publish" | "comment" | "follow">("comment");
 
   // Toast state
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
@@ -114,6 +156,7 @@ function RecipeDetailContent() {
 
   // Add to Shopping List
   const handleAddToShoppingList = () => {
+    if (user) { router.push(recipePlannerLink(recipe.id, servings)); return; }
     addIngredientsFromRecipe(
       recipe.title,
       recipe.ingredients.map((ing) => ({
@@ -126,7 +169,19 @@ function RecipeDetailContent() {
   };
 
   // Add to Meal Plan
-  const handleSaveToMealPlan = () => {
+  const handleSaveToMealPlan = async () => {
+    if (user) {
+      if (planLock.current) return;
+      planLock.current = true; setSavingPlan(true);
+      try {
+        await addRecipeToCurrentWeek(recipe.id, selectedPlanDay, selectedMealType, servings);
+        showToast("Đã lưu món vào thực đơn tuần hiện tại.");
+        setIsMealPlanOpen(false);
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : "Không thể lưu thực đơn. Vui lòng thử lại.");
+      } finally { planLock.current = false; setSavingPlan(false); }
+      return;
+    }
     addMealToPlan(selectedPlanDay, recipe, selectedMealType);
     const dayNames: Record<string, string> = {
       T2: "Thứ Hai",
@@ -148,21 +203,31 @@ function RecipeDetailContent() {
   };
 
   // Submit Review
-  const handleSubmitReview = (e: React.FormEvent) => {
+  const reviewLock = React.useRef(false);
+  const [savingReview, setSavingReview] = React.useState(false);
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newReviewText.trim()) {
       showToast("Vui lòng nhập nội dung đánh giá");
       return;
     }
-    addReview(recipe.id, {
+    if (!user) { setIsLoginDialogOpen(true); return; }
+    if (reviewLock.current) return;
+    reviewLock.current = true; setSavingReview(true);
+    try {
+    await addReview(recipe.id, {
       userName: user?.name || "Bếp Trưởng Gia Đình",
       userAvatarText: user?.avatarText || "BT",
       rating: newRating,
       content: newReviewText.trim(),
       location: user?.location || "Việt Nam",
     });
+    setReviewRevision((value) => value + 1);
     setNewReviewText("");
-    showToast("Cảm ơn bạn đã gửi đánh giá công thức!");
+    showToast("Đã lưu đánh giá của bạn.");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Không gửi được đánh giá.");
+    } finally { reviewLock.current = false; setSavingReview(false); }
   };
 
   // Timer logic
@@ -173,8 +238,11 @@ function RecipeDetailContent() {
         setActiveTimerSeconds((prev) => (prev !== null && prev > 0 ? prev - 1 : 0));
       }, 1000);
     } else if (activeTimerSeconds === 0) {
-      setIsTimerRunning(false);
-      showToast(`Hết giờ: ${timerName}!`);
+      const timer = window.setTimeout(() => {
+        setIsTimerRunning(false);
+        showToast(`Hết giờ: ${timerName}!`);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -203,7 +271,7 @@ function RecipeDetailContent() {
     <>
       {/* ═══════ MOBILE LAYOUT ═══════ */}
       <div className="md:hidden">
-        <RecipeDetailMobile recipeId={params?.id} />
+        <RecipeDetailMobile recipe={{ ...recipe, reviews: savedReviews }} reviewsLoading={reviewsLoading} reviewsError={reviewsError} onReviewSaved={() => setReviewRevision((value) => value + 1)} />
       </div>
 
       {/* ═══════ DESKTOP LAYOUT ═══════ */}
@@ -415,7 +483,7 @@ function RecipeDetailContent() {
                     className="flex items-center gap-2 px-space-md py-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface transition-all active:scale-95 font-body-md text-body-md font-medium cursor-pointer"
                   >
                     <Icon name="add_shopping_cart" size={20} className="text-tertiary" />
-                    <span>Thêm vào giỏ chợ</span>
+                    <span>{user ? "Lập thực đơn để đi chợ" : "Thêm vào giỏ chợ"}</span>
                   </button>
                 </div>
 
@@ -693,6 +761,8 @@ function RecipeDetailContent() {
                         </div>
                       </div>
                       <textarea
+                        maxLength={2000}
+                        disabled={savingReview}
                         value={newReviewText}
                         onChange={(e) => setNewReviewText(e.target.value)}
                         placeholder="Chia sẻ cảm nhận, mẹo nấu hoặc hương vị thành phẩm sau khi nấu món này..."
@@ -704,7 +774,7 @@ function RecipeDetailContent() {
                           Đăng bởi: <strong>{user?.name || "Người dùng RecipeHub"}</strong>
                         </span>
                         <button
-                          type="submit"
+                          type="submit" disabled={savingReview}
                           className="px-5 py-2 rounded-xl bg-primary text-on-primary hover:bg-primary-container font-body-sm text-body-sm font-semibold shadow-sm transition-all active:scale-95 cursor-pointer"
                         >
                           Gửi đánh giá
@@ -714,8 +784,8 @@ function RecipeDetailContent() {
 
                     {/* Reviews List */}
                     <div className="flex flex-col gap-space-md">
-                      {recipe.reviews && recipe.reviews.length > 0 ? (
-                        recipe.reviews.map((rev) => (
+                      {reviewsLoading ? <p role="status">Đang tải đánh giá…</p> : reviewsError ? <p role="alert">{reviewsError}</p> : savedReviews.length > 0 ? (
+                        savedReviews.map((rev) => (
                           <div
                             key={rev.id}
                             className="p-space-md rounded-2xl bg-surface-container-lowest border border-outline-variant/30 flex flex-col gap-space-xs shadow-sm"
@@ -974,7 +1044,7 @@ function RecipeDetailContent() {
                         <button
                           key={d.value}
                           type="button"
-                          onClick={() => setSelectedPlanDay(d.value as any)}
+                          onClick={() => setSelectedPlanDay(d.value as typeof selectedPlanDay)}
                           className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
                             selectedPlanDay === d.value
                               ? "border-primary bg-primary-fixed text-primary font-bold shadow-sm"
@@ -998,7 +1068,7 @@ function RecipeDetailContent() {
                         <button
                           key={m.value}
                           type="button"
-                          onClick={() => setSelectedMealType(m.value as any)}
+                          onClick={() => setSelectedMealType(m.value as typeof selectedMealType)}
                           className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
                             selectedMealType === m.value
                               ? "border-secondary bg-secondary-fixed text-on-secondary-fixed font-bold shadow-sm"
@@ -1022,9 +1092,10 @@ function RecipeDetailContent() {
                     <button
                       type="button"
                       onClick={handleSaveToMealPlan}
+                      disabled={savingPlan}
                       className="flex-1 py-2.5 rounded-xl bg-primary text-on-primary hover:bg-primary-container font-body-md text-body-md font-semibold cursor-pointer shadow-sm"
                     >
-                      Lưu vào thực đơn
+                      {savingPlan ? "Đang lưu…" : "Lưu vào thực đơn tuần này"}
                     </button>
                   </div>
                 </div>
@@ -1062,7 +1133,48 @@ export default function RecipeDetailPage() {
         </div>
       }
     >
-      <RecipeDetailContent />
+      <RecipeDetailLoader />
     </React.Suspense>
   );
+}
+
+function RecipeDetailLoader() {
+  const { id } = useParams<{ id: string }>();
+  const { user, isRestoringSession } = useAuth();
+  return <RecipeDetailRequest key={id + ":" + (user?.id ?? "guest") + ":" + isRestoringSession} id={id} waiting={isRestoringSession} />;
+}
+
+function RecipeDetailRequest({ id, waiting }: { id: string; waiting: boolean }) {
+  const [recipe, setRecipe] = React.useState<Recipe | null>(null);
+  const [error, setError] = React.useState("");
+  const [revision, setRevision] = React.useState(0);
+  React.useEffect(() => {
+    if (waiting) return;
+    const controller = new AbortController();
+    async function load() {
+      try {
+        let loaded: Recipe | null;
+        if (isCloudRecipe(id)) {
+          const detail = await planningRequest<BackendRecipeDetail>(`recipes/${id}`, { signal: controller.signal });
+          loaded = mapBackendToRecipe(detail.summary, detail);
+        } else {
+          loaded = (await recipeService.getRecipeById(id)).data;
+        }
+        if (controller.signal.aborted) return;
+        if (loaded) setRecipe(loaded);
+        else setError("Không tìm thấy công thức này.");
+      } catch (cause) {
+        if (controller.signal.aborted) return;
+        setError(cause instanceof PlanningError && cause.status === 404
+          ? "Không tìm thấy công thức này."
+          : "Không tải được công thức. Vui lòng kiểm tra kết nối rồi thử lại.");
+      }
+    }
+    void load();
+    return () => controller.abort();
+  }, [id, waiting, revision]);
+  if (recipe) return <RecipeDetailContent key={recipe.id} recipe={recipe} />;
+  return <><Navbar /><main className="mx-auto min-h-[60vh] max-w-4xl space-y-4 p-8">
+    {error ? <><p role="alert">{error}</p><button className="rounded-xl border p-3" onClick={() => { setError(""); setRevision((value) => value + 1); }}>Thử lại</button><Link className="ml-4 underline" href="/recipes">Khám phá công thức</Link></> : <p role="status">Đang tải công thức…</p>}
+  </main><Footer /></>;
 }

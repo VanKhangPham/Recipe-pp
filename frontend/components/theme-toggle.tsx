@@ -4,31 +4,25 @@ import * as React from "react";
 import { Icon } from "@/components/ui/icon";
 
 export function ThemeToggle() {
-  const [isDark, setIsDark] = React.useState(false);
-
+  const isDark = React.useSyncExternalStore(subscribeToTheme, () => document.documentElement.classList.contains("dark"), () => false);
   React.useEffect(() => {
-    const isDarkMode =
-      localStorage.getItem("theme") === "dark" ||
-      (!localStorage.getItem("theme") &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches);
-    setIsDark(isDarkMode);
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const applyTheme = () => {
+      let theme: string | null = null;
+      try { theme = localStorage.getItem("theme"); } catch { /* Use the system preference when storage is blocked. */ }
+      document.documentElement.classList.toggle("dark", theme === "dark" || (theme === null && media.matches));
+    };
+    applyTheme();
+    window.addEventListener("storage", applyTheme);
+    media.addEventListener("change", applyTheme);
+    return () => {
+      window.removeEventListener("storage", applyTheme);
+      media.removeEventListener("change", applyTheme);
+    };
   }, []);
-
   const toggleTheme = () => {
-    const nextDark = !isDark;
-    setIsDark(nextDark);
-    if (nextDark) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
+    document.documentElement.classList.toggle("dark", !isDark);
+    try { localStorage.setItem("theme", isDark ? "light" : "dark"); } catch { /* Keep the current page usable without storage. */ }
   };
 
   return (
@@ -47,4 +41,10 @@ export function ThemeToggle() {
       <span className="font-medium">{isDark ? "Giao diện Tối" : "Giao diện Sáng"}</span>
     </button>
   );
+}
+
+function subscribeToTheme(listener: () => void) {
+  const observer = new MutationObserver(listener);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  return () => observer.disconnect();
 }

@@ -1,4 +1,5 @@
 "use client";
+import { AccountPlanningGate } from "@/components/account-planning";
 
 import * as React from "react";
 import Link from "next/link";
@@ -58,7 +59,7 @@ const CATEGORY_GROUP_CONFIGS: CategoryGroupConfig[] = [
   },
 ];
 
-export default function ShoppingListPage() {
+function GuestShoppingListPage() {
   const {
     items,
     addItem,
@@ -782,4 +783,8 @@ export default function ShoppingListPage() {
     </div>
     </>
   );
+}
+
+export default function ShoppingListPage() {
+  return <AccountPlanningGate kind="shopping"><GuestShoppingListPage /></AccountPlanningGate>;
 }

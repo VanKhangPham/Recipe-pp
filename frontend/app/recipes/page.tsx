@@ -3,17 +3,17 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Icon } from "@/components/ui/icon";
 import { RecipesBrowseMobile } from "@/components/mobile/recipes-browse-mobile";
-import { useRecipes } from "@/lib/context/recipes-context";
+import { useRecipes, RecipeDataStatus } from "@/lib/context/recipes-context";
 import { useFavorites } from "@/lib/context/favorites-context";
 import { Recipe } from "@/lib/types";
 
 function RecipesPageInner() {
-  const router = useRouter();
+
   const searchParams = useSearchParams();
   const { recipes } = useRecipes();
   const { isFavorited, toggleFavorite } = useFavorites();
@@ -34,14 +34,6 @@ function RecipesPageInner() {
   const [visibleCount, setVisibleCount] = React.useState(9);
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
 
-  // Sync state if URL searchParams change
-  React.useEffect(() => {
-    const q = searchParams.get("q");
-    if (q !== null) setSearchQuery(q);
-    const cat = searchParams.get("category");
-    if (cat !== null) setSelectedCategory(cat);
-  }, [searchParams]);
-
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
@@ -50,9 +42,9 @@ function RecipesPageInner() {
   const handleToggleFavorite = (recipe: Recipe) => {
     const nextState = toggleFavorite(recipe.id, recipe);
     if (nextState) {
-      showToast(`Đã lưu "${recipe.title}" vào mục yêu thích!`);
+      showToast(`Đã chọn yêu thích "${recipe.title}".`);
     } else {
-      showToast(`Đã bỏ lưu "${recipe.title}"`);
+      showToast(`Đã chọn bỏ yêu thích "${recipe.title}".`);
     }
   };
 
@@ -113,7 +105,7 @@ function RecipesPageInner() {
       }
 
       // 6. Diet filter
-      if (selectedDiet && !r.dietTags?.includes(selectedDiet as any)) {
+      if (selectedDiet && !r.dietTags?.includes(selectedDiet as Recipe["dietTags"][number])) {
         return false;
       }
 
@@ -131,6 +123,7 @@ function RecipesPageInner() {
 
   return (
     <>
+      <RecipeDataStatus />
       {/* ═══════ MOBILE LAYOUT ═══════ */}
       <div className="md:hidden">
         <RecipesBrowseMobile />
@@ -676,7 +669,12 @@ function RecipesPageInner() {
 export default function RecipesPage() {
   return (
     <React.Suspense fallback={<div className="min-h-screen bg-background" />}>
-      <RecipesPageInner />
+      <RecipesPageRoute />
     </React.Suspense>
   );
+}
+
+function RecipesPageRoute() {
+  const searchParams = useSearchParams();
+  return <RecipesPageInner key={searchParams.toString()} />;
 }
