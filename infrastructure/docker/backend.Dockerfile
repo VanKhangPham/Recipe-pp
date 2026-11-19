@@ -6,6 +6,11 @@ RUN dotnet publish backend/RecipeHub.Api/RecipeHub.Api.csproj -c Release -o /app
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 ENV ASPNETCORE_HTTP_PORTS=8080
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /var/lib/recipehub/dpkeys \
+    && chown -R "$APP_UID" /var/lib/recipehub
 COPY --from=build /app/publish .
 USER $APP_UID
 EXPOSE 8080

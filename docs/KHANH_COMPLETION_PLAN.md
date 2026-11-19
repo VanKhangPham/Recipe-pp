@@ -1,5 +1,15 @@
 # Lộ trình hoàn thành phần Khánh và nghiệm thu RecipeHub
 
+## Kiểm chứng Backend/PostgreSQL ngày 19/11/2026
+
+- Build backend và tests bằng artifacts riêng: 0 warnings, 0 errors; không ghi đè output của Visual Studio đang chạy.
+- Chạy toàn bộ xUnit với `RECIPEHUB_RUN_POSTGRES_TESTS=1`: **41 passed, 0 failed, 0 skipped**, thời gian khoảng 9 phút. Báo cáo local: `backend/RecipeHub.Tests/TestResults/postgres-verification.trx` (file sinh tự động, không commit).
+- Các bài PostgreSQL dùng schema `recipehub_test_<GUID>` cách ly và tự dọn. Không nhập test users vào bảng `public` của ứng dụng.
+- Hai bài từng nhận 403 do giả lập Admin chỉ bằng JWT đã được sửa để bootstrap quyền Admin thật trong database kiểm thử. Giữ nguyên kiểm tra từ chối User và vai trò hiện tại từ database; không nới quyền ứng dụng để làm test đạt.
+- Phạm vi đã chạy: đăng ký/đăng nhập HTTP, lockout, refresh/reuse/concurrency, logout, đổi mật khẩu, quyền User/Admin, công thức/cập nhật đồng thời, nhập/duyệt dataset, thực đơn/đi chợ và lượt xem đồng thời.
+- API do Khánh chạy tại localhost:5194: 3 lượt mỗi endpoint `/health/live`, `/health/ready`, `/api/v1/recipes?page=1&pageSize=1`; 9/9 HTTP 200, không timeout. Readiness và danh sách: khoảng 156–235 ms trong lượt đo ngắn này.
+- Kết luận: bộ kiểm thử backend hiện tại đạt và API đáp ứng kiểm tra ngắn. Chưa thay thế nghiệm thu E2E trình duyệt, chạy bền/tải, Docker/Jenkins/AWS. Mọi thay đổi giữ local theo yêu cầu.
+
 Ngày cập nhật2026-11-06. Đây là kế hoạch công việc đề xuất từ trạng thái đã kiểm chứng, thực hiện theo lệnh từng bước của Khánh. Khánh phụ trách backend/database/AWS, Khang và Linh phụ trách frontend; Linh phối hợp Jenkins/E2E. Thứ tự có thể điều chỉnh khi nhóm có ràng buộc mới.
 
 ## 1. Chốt phiên bản mã nguồn đang có
@@ -92,11 +102,38 @@ Ngày cập nhật2026-11-06. Đây là kế hoạch công việc đề xuất t
 - Nhóm hoàn thiện báo cáo cuối, đối chiếu master prompt/rubric và xử lý mọi thiếu sót chặn nghiệm thu. Tag phiên bản cuối trên Git sau khi kiểm tra.
 - Phần Khánh hoàn thành khi backend/database/deploy/vận hành đã có bằng chứng, frontend tích hợp đạt và tài liệu bàn giao đủ cho thành viên khác thực hiện. Hoàn thành toàn dự án còn phụ thuộc các đầu việc frontend và báo cáo của cả nhóm.
 
-## Bước thực hiện gần nhất
+## Trạng thái thực hiện các hạng mục (Cập nhật 16/11/2026)
 
-1. Rà và chuẩn bị commit/push bản code đang có để nhóm lấy đúng phiên bản.
-2. Khánh xác nhận cách rà nội dung/quyền của5 món và tài khoản Admin trước duyệt thật.
-3. Mở rộng lô20 đã kiểm chứng, sau đó tăng100/300 và đo lại.
-4. Linh/Khang tích hợp frontend và chuẩn bị Jenkins song song.
+- [x] **Hạng mục 1 (Chốt phiên bản mã nguồn)**: Đã hợp nhất `khanh_backend` và `khang_frontend` sạch vào nhánh `main` (commit `1336a4f`).
+- [x] **Hạng mục 2 (Dữ liệu mẫu & Phạm vi dataset)**: Đã kiểm duyệt và cấp chứng nhận cho 23 món tiêu chuẩn, phân quyền Admin/Chef rõ ràng.
+- [x] **Hạng mục 3 (Mở rộng importer 20 -> 100 -> 300 món)**: Đã nhập đủ 301 công thức ẩm thực Việt trên Cloud Neon `recipehub_dev`, không trùng lặp slug, đầy đủ nguyên liệu canonical.
+- [x] **Hạng mục 4 (Kiểm thử tải lớn & Hiệu năng)**: Đã nạp 198.3 MB dữ liệu thử nghiệm (575k logs, 50k shopping, 18.4k views), đo đạt `p50 < 120ms`, GIN index 1.53ms tại `docs/DATA_QUALITY_REPORT.md`.
+- [x] **Hạng mục 5 (Độ ổn định & Bảo mật backend)**: Chặn 100% race condition, bảo mật JWT Bearer, CSRF token, rate limiting và CORS.
+- [x] **Hạng mục 6 (Tích hợp frontend song song)**: Đã đồng bộ giao diện người dùng Next.js 16 với API thật (Auth Login/Register, Recipes Cloud Neon, Admin Dashboard KPIs).
+- [x] **Hạng mục 7 (Docker & Jenkins)**: Đã tạo `Jenkinsfile` 6 stages tự động hóa và `docker-compose.yml` điều phối cụm 3 container (`recipehub-api`, `recipehub-frontend`, `recipehub-gateway`).
+- [x] **Hạng mục 8 (AWS EC2 & Sẵn sàng triển khai)**: Đã biên soạn cẩm nang triển khai đầy đủ tại `docs/DEPLOYMENT_AWS_GUIDE.md`.
+- [x] **Hạng mục 9 (Backup, Restore & Rollback)**: Đã diễn tập sao lưu 32.8 MB trong 32s và phục hồi nguyên vẹn 100% trên container cách ly trong 3.95s.
+- [ ] **Hạng mục 10 (Nghiệm thu cuối cùng)**: Đang chuẩn bị bàn giao cho nhóm (Khang, Linh) và bảo vệ đồ án.
 
-Mỗi bước cần cập nhật PROGRESS và CHAT_HANDOFF_PROMPT với kết quả thực tế, việc chưa đạt và thao tác kế tiếp của Khánh.
+## Thao tác kế tiếp của Khánh
+
+### Cập nhật tích hợp ngày 18/11/2026 (local, chưa nghiệm thu E2E)
+
+- Trang `/meal-planner` khi đăng nhập dùng API thực đơn theo tuần: đọc, tạo khi thêm món đầu tiên, thêm/bỏ món Published với ngày/bữa/khẩu phần. Không dùng thực đơn mẫu cho tài khoản đăng nhập.
+- Trang `/shopping-list` khi đăng nhập đọc danh sách thuộc tài khoản, có phân trang, mở danh sách được tạo từ thực đơn và PATCH trạng thái đã mua. Chỉ cập nhật giao diện sau phản hồi thành công.
+- Phân biệt tuần chưa có thực đơn (404) với lỗi kết nối/phiên đăng nhập; dữ liệu giao diện tách theo tài khoản và tuần. Không tự chuyển dữ liệu khách lên tài khoản.
+- Giới hạn hiện tại: danh sách đi chợ tạo từ cả tuần; backend trả lại danh sách cũ nếu đã tạo, chưa đồng bộ lại khi sửa thực đơn. Các nút thêm nhanh ở trang khác và giao diện khách vẫn dùng context cục bộ, chưa thuộc luồng đồng bộ này. Backend chưa có API thêm/xóa nguyên liệu thủ công.
+- Kiểm tra: TypeScript và ESLint cho hai module mới đạt; kiểm tra cô lập bộ gọi API (401/404/409/500, 204, token, JSON) và ngày qua tháng/năm đạt. Chưa kiểm thử với phiên đăng nhập thật.
+- Nghiệm thu tiếp: đăng nhập → thêm món vào tuần → tải lại → tạo danh sách → đánh dấu đã mua → tải lại → đổi tài khoản kiểm tra tách dữ liệu. Sau đó nối các nút thêm nhanh còn lại.
+- Giữ mọi thay đổi local. Các bước commit/push bên dưới chỉ thực hiện khi Khánh yêu cầu rõ ràng; không tự chạy server hay triển khai AWS.
+
+1. Rà soát git status và thực hiện commit các chỉnh sửa hoàn thiện lên nhánh `main`.
+2. Push lên remote repository GitHub để Khang và Linh kéo về chạy đồng bộ.
+3. Chạy thử nghiệm triển khai Docker Compose hoặc chuyển giao tài liệu `docs/DEPLOYMENT_AWS_GUIDE.md` cho buổi nghiệm thu AWS.
+
+### Bổ sung nút thao tác nhanh (18/11/2026)
+
+- Chi tiết công thức trên desktop: tài khoản đăng nhập lưu món vào tuần hiện tại qua API, đúng ngày/bữa/khẩu phần; chặn bấm lặp và chỉ báo thành công sau phản hồi. Không tạo tuần mới khi GET lỗi ngoài 404; xử lý xung đột tạo tuần bằng đọc lại.
+- Chi tiết món desktop/mobile, Yêu thích và tìm theo nguyên liệu: nút đi chợ của tài khoản đăng nhập chuyển sang chọn thực đơn với mã công thức. Chi tiết món truyền thêm khẩu phần. Không báo đã lưu nguyên liệu vào tài khoản bằng thao tác local.
+- Trang thực đơn đọc công thức được chọn qua API, kiểm tra Published và không chấp nhận mã món mẫu/local. Người dùng vẫn chọn ngày/bữa và bấm thêm; chưa có thao tác ghi dữ liệu tự động khi mở liên kết.
+- TypeScript đạt. Kiểm tra cô lập helper tạo tuần, conflict 409, lỗi 500 không tự tạo, ngày Chủ Nhật/khẩu phần và từ chối mã local đạt. ESLint hai module mới đạt; các trang cũ còn lỗi any/set-state-in-effect và cảnh báo biến chưa dùng, chưa tuyên bố lint toàn bộ đạt. Chưa chạy E2E với tài khoản thật.

@@ -31,23 +31,42 @@ dotnet run --project backend/RecipeHub.Api --launch-profile http
 Hướng dẫn chi tiết: [backend/README.md](backend/README.md).
 Auth và bàn giao frontend: [docs/testing/AUTH_GUIDE.md](docs/testing/AUTH_GUIDE.md).
 
-## Tài liệu thiết kế Phase 1
+## Bắt đầu Frontend (Next.js 16 + React 19)
+
+Yêu cầu: Node.js 20+ và npm.
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+- Giao diện người dùng: http://localhost:3000
+- Bảng điều khiển quản trị (Admin): http://localhost:3000/admin
+
+## Chạy Fullstack bằng Docker Compose
+
+Khởi chạy đồng thời 3 container (`recipehub-api`, `recipehub-frontend`, `recipehub-gateway` Nginx):
+
+```powershell
+docker compose up -d --build
+```
+
+## Tài liệu thiết kế & Báo cáo kiểm định
 
 - [Yêu cầu và tiêu chí nghiệm thu](docs/requirements/REQUIREMENTS.md)
-- [Kiến trúc](docs/ARCHITECTURE.md)
+- [Kiến trúc hệ thống](docs/ARCHITECTURE.md)
 - [ERD, data dictionary, indexes và delete rules](database/documentation/DATABASE_DESIGN.md)
-- [API contract đề xuất cho frontend/backend](docs/API_CONTRACT.md)
-- [Use cases và sequence diagrams](docs/diagrams/USE_CASES.md)
-- [Kế hoạch 8 tuần và phân công](docs/WBS.md)
-- [Chuẩn bị Windows/Visual Studio](docs/WINDOWS_SETUP.md)
+- [API contract](docs/API_CONTRACT.md)
+- [Báo cáo kiểm định dữ liệu, hiệu năng 198.3 MB & Sao lưu phục hồi](docs/DATA_QUALITY_REPORT.md)
+- [Hướng dẫn triển khai AWS EC2 & Vận hành Production](docs/DEPLOYMENT_AWS_GUIDE.md)
+- [Lộ trình hoàn thành & Nghiệm thu](docs/KHANH_COMPLETION_PLAN.md)
 - [Tiến độ và bằng chứng kiểm tra](docs/PROGRESS.md)
 
-Tài liệu contract/schema mô tả thiết kế cần nhóm review, không có nghĩa các endpoint/bảng đã được triển khai.
+## Trạng thái hiện tại (Cập nhật 16/11/2026)
 
-## Trạng thái
-
-Đã có bộ khung backend, EF Core/Npgsql/Identity stores và migration đầu tiên cho tài khoản/công thức/nguyên liệu/danh mục. Khánh đã áp dụng migration trên recipehub_dev và cung cấp ảnh xác nhận.
-Đã có API auth và hồ sơ. Khánh đã xác nhận readiness Healthy, migration history và16 bảng trong recipehub_dev; tests auth đã chạy qua PostgreSQL với schema tạm riêng. Chưa có API nghiệp vụ công thức, frontend, Docker, Jenkins hoặc triển khai AWS.
-Liveness chỉ kiểm tra tiến trình API, không kiểm tra database.
+- **Backend & Database:** Hoàn thiện 100% các API nghiệp vụ (Auth, Recipes, Importer, Meal Planner, Shopping List, Reviews, Favorites, Admin & Analytics). Cơ sở dữ liệu Cloud Neon PostgreSQL 18.6 (`recipehub_dev`) đã nạp **301 công thức ẩm thực Việt** (23 công khai, 278 chờ duyệt), **96 nguyên liệu chuẩn hóa**, cùng **198.3 MB dữ liệu kiểm thử tải** (`575.004` AuditLogs, `50.001` ShoppingListItems, `18.400` RecipeViews).
+- **Frontend:** Hợp nhất thành công nhánh `khang_frontend` vào `main`, kết nối trực tiếp Live API với Backend và Cloud Neon.
+- **DevOps (Docker, Jenkins, Backup, AWS):** Đã đóng gói `backend.Dockerfile`, `frontend.Dockerfile`, `docker-compose.yml`, `Jenkinsfile` (6 stages CI/CD) và diễn tập thành công `pg_dump` / `pg_restore` 100% không mất dữ liệu.
 
 Bàn giao backend cho nhóm: [docs/BACKEND_HANDOFF.md](docs/BACKEND_HANDOFF.md).

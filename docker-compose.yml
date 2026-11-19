@@ -1,0 +1,94 @@
+# ==============================================================================
+# RecipeHub Fullstack Production Docker Compose Orchestration
+# Services:
+#   - recipehub-api: ASP.NET Core .NET 10 API
+#   - recipehub-frontend: Next.js 16 App Router UI
+#   - recipehub-gateway: Nginx Reverse Proxy
+# ==============================================================================
+
+services:
+  recipehub-api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/backend.Dockerfile
+    image: recipehub-api:${IMAGE_TAG:-latest}
+    container_name: recipehub-api
+    restart: unless-stopped
+    expose:
+      - "8080"
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file:
+      - path: .env.backend.local
+        required: false
+      - path: .env
+        required: false
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_HTTP_PORTS: "8080"
+      DataProtection__KeysPath: /var/lib/recipehub/dpkeys
+    volumes:
+      - recipehub_dpkeys:/var/lib/recipehub/dpkeys
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - recipehub-network
+
+  recipehub-frontend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/frontend.Dockerfile
+      args:
+        NEXT_PUBLIC_RESTORE_SESSION: ${NEXT_PUBLIC_RESTORE_SESSION:-false}
+    image: recipehub-frontend:${IMAGE_TAG:-latest}
+    container_name: recipehub-frontend
+    restart: unless-stopped
+    expose:
+      - "3000"
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      NEXT_TELEMETRY_DISABLED: "1"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/', {signal: AbortSignal.timeout(3000)}).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      recipehub-api:
+        condition: service_healthy
+    networks:
+      - recipehub-network
+
+  recipehub-gateway:
+    image: nginx:1.27-alpine
+    container_name: recipehub-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/nginx/recipehub.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      recipehub-api:
+        condition: service_healthy
+      recipehub-frontend:
+        condition: service_healthy
+    networks:
+      - recipehub-network
+
+volumes:
+  recipehub_dpkeys:
+    name: recipehub_dpkeys
+
+networks:
+  recipehub-network:
+    name: recipehub-network
+    driver: bridge
