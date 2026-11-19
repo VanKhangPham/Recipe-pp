@@ -83,28 +83,38 @@ export default function IngredientSearchPage() {
 
   // Dynamic Matched Recipes based on selectedIngredients & recipes library
   const matchedRecipes = React.useMemo(() => {
-    const normSelected = selectedIngredients.map((s) =>
-      s
+    const stripAccents = (value: string) =>
+      value
         .toLowerCase()
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/đ/g, "d")
-        .trim()
-    );
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const containsPhrase = (haystack: string, needle: string) => {
+      if (needle.length < 2) return false;
+      return ` ${haystack} `.includes(` ${needle} `);
+    };
+
+    const parsedSelected = selectedIngredients.map((raw) => {
+      const lower = raw.toLowerCase().replace(/\s+/g, " ").trim();
+      const plain = stripAccents(lower);
+      return { lower, plain, hasAccents: lower !== plain };
+    });
 
     return recipes
       .map((r) => {
         const totalIngs = r.ingredients.length || 1;
         const matchedIngs = r.ingredients.filter((ing) => {
-          const normName = ing.name
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/đ/g, "d")
-            .trim();
-          return normSelected.some(
-            (sel) => sel.length >= 2 && (normName.includes(sel) || sel.includes(normName))
-          );
+          const lowerName = ing.name.toLowerCase().replace(/\s+/g, " ").trim();
+          const plainName = stripAccents(lowerName);
+          return parsedSelected.some((sel) => {
+            if (sel.hasAccents) {
+              return containsPhrase(lowerName, sel.lower) || containsPhrase(sel.lower, lowerName);
+            }
+            return containsPhrase(plainName, sel.plain) || containsPhrase(sel.plain, plainName);
+          });
         });
 
         const missingIngs = r.ingredients.filter(

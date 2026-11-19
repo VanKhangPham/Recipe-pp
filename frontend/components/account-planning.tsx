@@ -9,8 +9,8 @@ import { useAuth } from "@/lib/context/auth-context";
 import { dayOffset, weekMonday, planningRequest, PlanningError, isCloudRecipe, type MealPlan, type MealEntry, type ShoppingList, type ShoppingEntry, type Page } from "@/lib/services/planning-api";
 
 const subscribe = () => () => {};
-const control = "rounded-xl border border-orange-200 bg-white p-3 disabled:opacity-50";
-const action = `${control} text-orange-800 font-semibold`;
+const control = "rounded-xl border border-outline-variant bg-surface text-on-surface p-3 disabled:opacity-50";
+const action = `${control} text-primary font-semibold hover:bg-surface-container-low transition-colors`;
 const meals: Record<string, string> = { Breakfast: "Bữa sáng", Lunch: "Bữa trưa", Dinner: "Bữa tối", Snack: "Bữa phụ" };
 const errorText = (error: unknown) => error instanceof PlanningError ? error.message : "Không thể kết nối máy chủ. Vui lòng thử lại.";
 
@@ -108,7 +108,7 @@ function WeekPlan({ week, onShopping }: { week: string; onShopping: (id: string)
     });
   }
   return <section className="space-y-5" aria-busy={busy || loading}>
-    {error && <p role="alert" className="text-red-700">{error}</p>}
+    {error && <p role="alert" className="text-error">{error}</p>}
     <button className={action} disabled={busy || loading} onClick={() => { setLoading(true); setError(""); setPlan(null); setReload((n) => n + 1); }}>Làm mới</button>
     {loading ? <p role="status">Đang tải thực đơn…</p> : <>
       {!plan && !error && <p>Tuần này chưa có thực đơn. Chọn món để bắt đầu.</p>}
@@ -116,8 +116,8 @@ function WeekPlan({ week, onShopping }: { week: string; onShopping: (id: string)
         <input className={control} aria-label="Tìm công thức" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm món đã xuất bản" />
         <button className={action} disabled={busy}>Tìm món</button>
       </form>
-      {searchError && <p role="alert" className="text-red-700">{searchError}</p>}
-      <form onSubmit={add} className="flex flex-wrap gap-3 rounded-2xl bg-orange-50 p-4">
+      {searchError && <p role="alert" className="text-error">{searchError}</p>}
+      <form onSubmit={add} className="flex flex-wrap gap-3 rounded-2xl bg-surface-container-low border border-outline-variant/40 p-4">
         <label>Món ăn<select required className={`${control} block max-w-full`} value={recipeId} onChange={(e) => setRecipeId(e.target.value)}><option value="">Chọn công thức</option>{recipes.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}</select></label>
         <label>Ngày<select name="date" className={`${control} block`}>{Array.from({ length: 7 }, (_, i) => <option key={i} value={dayOffset(week, i)}>{dayOffset(week, i)}</option>)}</select></label>
         <label>Bữa<select name="mealType" className={`${control} block`}>{Object.entries(meals).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
@@ -169,11 +169,11 @@ function AccountShopping() {
     <h1 className="text-3xl font-bold">Danh sách đi chợ của bạn</h1>
     <Link href="/meal-planner" className="underline">Lập thực đơn để tạo danh sách nguyên liệu</Link>
     <button className={action} onClick={() => { setLists(null); setError(""); setReload((n) => n + 1); }}>Làm mới</button>
-    {error && <p role="alert" className="text-red-700">{error}</p>}
+    {error && <p role="alert" className="text-error">{error}</p>}
     {!lists && !error && <p role="status">Đang tải danh sách…</p>}
     {lists && <>
       {!lists.items.length && <p>Chưa có danh sách đi chợ.</p>}
-      <nav aria-label="Chọn danh sách đi chợ" className="flex flex-wrap gap-3">{lists.items.map((list) => <button aria-pressed={selected === list.id} className={`${action} ${selected === list.id ? "bg-orange-100" : ""}`} key={list.id} onClick={() => setSelected(list.id)}>{list.name}</button>)}</nav>
+      <nav aria-label="Chọn danh sách đi chợ" className="flex flex-wrap gap-3">{lists.items.map((list) => <button aria-pressed={selected === list.id} className={`${action} ${selected === list.id ? "bg-primary-fixed text-on-primary-fixed border-primary/40" : ""}`} key={list.id} onClick={() => setSelected(list.id)}>{list.name}</button>)}</nav>
       {lists.totalPages > 1 && <div className="flex gap-3"><button className={action} disabled={page === 1} onClick={() => { setLists(null); setError(""); setPage(page - 1); }}>Trước</button><span>Trang {page} / {lists.totalPages}</span><button className={action} disabled={page >= lists.totalPages} onClick={() => { setLists(null); setError(""); setPage(page + 1); }}>Sau</button></div>}
     </>}
     {selected && <ShoppingDetails key={`${selected}:${reload}`} id={selected} />}

@@ -149,7 +149,7 @@ export function mapBackendToRecipe(
   const ingredients: Ingredient[] = (detail?.ingredients || summary.ingredients || []).map((ing) => ({
     id: ing.ingredientId || ing.id,
     name: ing.ingredientName,
-    amount: `${Number(ing.quantity)} ${ing.unit}`,
+    amount: String(Number(ing.quantity)),
     unit: ing.unit,
     note: ing.note || undefined,
     category: "thit-ca",

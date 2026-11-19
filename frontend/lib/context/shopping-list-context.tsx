@@ -62,9 +62,11 @@ export function ShoppingListProvider({ children }: { children: React.ReactNode }
       subtext,
       createdAt: "Vừa xong",
     };
-    const next = [newItem, ...items];
-    setItems(next);
-    saveToStorage(next);
+    setItems((prev) => {
+      const next = [newItem, ...prev];
+      saveToStorage(next);
+      return next;
+    });
   };
 
   const addIngredientsFromRecipe = (
@@ -99,10 +101,17 @@ export function ShoppingListProvider({ children }: { children: React.ReactNode }
         cat = "gia-vi";
       }
 
+      const trimmedAmount = ing.amount.trim();
+      const trimmedUnit = ing.unit?.trim() || "";
+      const hasUnit = trimmedUnit
+        ? trimmedAmount.toLowerCase().endsWith(` ${trimmedUnit.toLowerCase()}`) ||
+          trimmedAmount.toLowerCase() === trimmedUnit.toLowerCase()
+        : false;
+
       return {
         id: "shop-" + Date.now() + Math.random().toString(36).substring(2, 6),
         name: ing.name,
-        amount: ing.unit ? `${ing.amount} ${ing.unit}` : ing.amount,
+        amount: trimmedUnit && !hasUnit ? `${trimmedAmount} ${trimmedUnit}`.trim() : trimmedAmount,
         category: cat,
         checked: false,
         subtext: `Từ món: ${recipeTitle}`,
@@ -110,29 +119,37 @@ export function ShoppingListProvider({ children }: { children: React.ReactNode }
       };
     });
 
-    const next = [...newItems, ...items];
-    setItems(next);
-    saveToStorage(next);
+    setItems((prev) => {
+      const next = [...newItems, ...prev];
+      saveToStorage(next);
+      return next;
+    });
   };
 
   const toggleCheck = (id: string) => {
-    const next = items.map((item) =>
-      item.id === id ? { ...item, checked: !item.checked } : item
-    );
-    setItems(next);
-    saveToStorage(next);
+    setItems((prev) => {
+      const next = prev.map((item) =>
+        item.id === id ? { ...item, checked: !item.checked } : item
+      );
+      saveToStorage(next);
+      return next;
+    });
   };
 
   const removeItem = (id: string) => {
-    const next = items.filter((item) => item.id !== id);
-    setItems(next);
-    saveToStorage(next);
+    setItems((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      saveToStorage(next);
+      return next;
+    });
   };
 
   const clearCompleted = () => {
-    const next = items.filter((item) => !item.checked);
-    setItems(next);
-    saveToStorage(next);
+    setItems((prev) => {
+      const next = prev.filter((item) => !item.checked);
+      saveToStorage(next);
+      return next;
+    });
   };
 
   const clearAll = () => {
