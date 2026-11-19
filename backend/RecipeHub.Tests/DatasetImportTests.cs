@@ -21,7 +21,8 @@ public sealed class DatasetImportTests(PostgresAuthFixture fixture) : IClassFixt
     [PostgresFact]
     public async Task ImportIsRepeatableAndRollsBackBatchOnConflict()
     {
-        var user = await fixture.WithService(auth => auth.RegisterAsync(PostgresAuthFixture.NewUser(), default));
+        var userRequest = PostgresAuthFixture.NewUser();
+        var user = await fixture.WithService(auth => auth.RegisterAsync(userRequest, default));
         var row = new DatasetRecipe("import-test", "Món thử", "Món thử", 2, 5, 10, "Draft",
             new("AI-assisted draft", "pending", false), [new("Trứng gà", 2, "piece")], ["Nấu chín."]);
         var json = JsonSerializer.Serialize(new[] { row });
@@ -58,7 +59,10 @@ public sealed class DatasetImportTests(PostgresAuthFixture fixture) : IClassFixt
             var issuer = fixture.Factory.Services.GetRequiredService<IAccessTokenIssuer>();
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issuer.Issue(user).Value);
             Assert.Equal(HttpStatusCode.Forbidden, (await client.PatchAsJsonAsync(route, approval)).StatusCode);
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issuer.Issue(user with { Roles = ["Admin"] }).Value);
+            // Authorization uses current database roles, not a test-only JWT claim.
+            await admin.BootstrapAdminAsync(userRequest.Email, userRequest.Password, userRequest.DisplayName, default);
+            var administrator = await fixture.WithService(auth => auth.GetProfileAsync(user.Id, default));
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issuer.Issue(administrator).Value);
             Assert.Equal(HttpStatusCode.BadRequest, (await client.PatchAsJsonAsync(route,
                 approval with { SourceName = null })).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await client.PatchAsJsonAsync(route,

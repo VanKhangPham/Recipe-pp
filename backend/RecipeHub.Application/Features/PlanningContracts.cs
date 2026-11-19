@@ -14,11 +14,12 @@ public sealed record ShoppingSummary(Guid Id, string Name, Guid? MealPlanId, Dat
 public sealed record ShoppingPatch([Range(typeof(decimal), "0.001", "999999999.999")] decimal? Quantity, bool? IsPurchased, [MaxLength(300)] string? Note);
 public interface IPlanningService
 {
-    Task<MealPlanDto> PlanAsync(Guid userId, DateOnly weekStart, CancellationToken ct);
+    Task<MealPlanDto?> PlanAsync(Guid userId, DateOnly weekStart, CancellationToken ct);
     Task<MealPlanDto> CreatePlanAsync(Guid userId, PlanWrite request, CancellationToken ct);
     Task<MealItemDto> SaveItemAsync(Guid userId, Guid planId, Guid? itemId, MealItemWrite request, CancellationToken ct);
     Task DeleteItemAsync(Guid userId, Guid planId, Guid itemId, CancellationToken ct);
     Task<(ShoppingListDto List, bool Created)> GenerateAsync(Guid userId, Guid planId, CancellationToken ct);
+    Task<ShoppingListDto> RefreshShoppingAsync(Guid userId, Guid planId, CancellationToken ct);
     Task<PageResult<ShoppingSummary>> ListsAsync(Guid userId, PageQuery page, CancellationToken ct);
     Task<ShoppingListDto> ListAsync(Guid userId, Guid id, CancellationToken ct);
     Task<ShoppingItemDto> PatchItemAsync(Guid userId, Guid listId, Guid itemId, ShoppingPatch request, CancellationToken ct);

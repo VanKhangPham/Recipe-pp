@@ -41,6 +41,9 @@ public sealed class HandoffApiTests(PostgresAuthFixture fixture) : IClassFixture
             (await client.PostAsJsonAsync("/api/v1/recipes", write)).StatusCode);
         var search = await client.GetFromJsonAsync<PageResult<RecipeSummary>>("/api/v1/recipes?q=mint&sort=rating");
         Assert.Equal(id, Assert.Single(search!.Items).Id);
+        var catalogIngredient = Assert.Single(search.Items[0].Ingredients);
+        Assert.Equal(ingredient.Id, catalogIngredient.IngredientId);
+        Assert.Equal(50m, catalogIngredient.Quantity);
         var suggestions = await client.GetFromJsonAsync<RecommendationDto[]>($"/api/v1/recommendations?ingredientIds={ingredient.Id}");
         Assert.Contains("ingredient-match", Assert.Single(suggestions!).Reasons);
         var issuer = fixture.Factory.Services.GetRequiredService<IAccessTokenIssuer>();
@@ -97,7 +100,12 @@ public sealed class HandoffApiTests(PostgresAuthFixture fixture) : IClassFixture
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var review = await created.Content.ReadFromJsonAsync<ReviewDto>();
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/v1/admin/users")).StatusCode);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issuer.Issue(user with { Roles = ["Admin"] }).Value);
+        var adminRequest = PostgresAuthFixture.NewUser();
+        var administrator = await fixture.WithService(auth => auth.RegisterAsync(adminRequest, default));
+        await scope.ServiceProvider.GetRequiredService<IAdministrationService>().BootstrapAdminAsync(
+            adminRequest.Email, adminRequest.Password, adminRequest.DisplayName, default);
+        administrator = await fixture.WithService(auth => auth.GetProfileAsync(administrator.Id, default));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issuer.Issue(administrator).Value);
         foreach (var catalog in new[] { "categories", "tags" })
         {
             var createdName = await client.PostAsJsonAsync($"/api/v1/admin/{catalog}", new NamedWrite("Fresh", "fresh"));
@@ -111,7 +119,7 @@ public sealed class HandoffApiTests(PostgresAuthFixture fixture) : IClassFixture
             Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(createdName.Headers.Location)).StatusCode);
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issuer.Issue(user).Value);
             Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync(createdName.Headers.Location)).StatusCode);
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issuer.Issue(user with { Roles = ["Admin"] }).Value);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issuer.Issue(administrator).Value);
         }
         Assert.True((await client.GetFromJsonAsync<PageResult<AdminUserDto>>("/api/v1/admin/users"))!.TotalCount > 0);
         Assert.Equal(review!.Id, Assert.Single((await client.GetFromJsonAsync<PageResult<ReviewDto>>("/api/v1/admin/reviews?moderationStatus=Visible"))!.Items).Id);
@@ -126,7 +134,7 @@ public sealed class HandoffApiTests(PostgresAuthFixture fixture) : IClassFixture
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/v1/users/me/recipes")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized,
             (await client.PostAsJsonAsync("/api/v1/recipes", write)).StatusCode);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issuer.Issue(user with { Roles = ["Admin"] }).Value);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issuer.Issue(administrator).Value);
         var unlockResponse = await client.PatchAsJsonAsync($"/api/v1/admin/users/{stranger.Id}/status", new UserStatusWrite(false));
         unlockResponse.EnsureSuccessStatusCode();
         Assert.False((await unlockResponse.Content.ReadFromJsonAsync<AdminUserDto>())!.IsLocked);

@@ -11,10 +11,12 @@ namespace RecipeHub.Infrastructure.Features;
 
 public sealed class PlanningService(RecipeHubDbContext db, RecipeService recipes, TimeProvider clock) : IPlanningService
 {
-    public async Task<MealPlanDto> PlanAsync(Guid userId, DateOnly weekStart, CancellationToken ct)
+    public async Task<MealPlanDto?> PlanAsync(Guid userId, DateOnly weekStart, CancellationToken ct)
     {
         CheckWeek(weekStart);
-        var plan = await db.Set<MealPlan>().AsNoTracking().SingleOrDefaultAsync(x => x.UserId == userId && x.WeekStart == weekStart, ct) ?? throw Missing();
+        var plan = await db.Set<MealPlan>().AsNoTracking().SingleOrDefaultAsync(x => x.UserId == userId && x.WeekStart == weekStart, ct);
+        // Browsing a week without a saved plan is an expected read result.
+        if (plan is null) return null;
         return new(plan.Id, plan.WeekStart, await (from item in db.Set<MealPlanItem>() join recipe in db.Recipes on item.RecipeId equals recipe.Id
             where item.MealPlanId == plan.Id orderby item.PlannedDate, item.MealType, item.Id
             select new MealItemDto(item.Id, recipe.Id, recipe.Title, item.PlannedDate, item.MealType, item.Servings)).ToArrayAsync(ct));
@@ -56,12 +58,18 @@ public sealed class PlanningService(RecipeHubDbContext db, RecipeService recipes
         var item = await db.Set<MealPlanItem>().SingleOrDefaultAsync(x => x.Id == itemId && x.MealPlanId == planId, ct) ?? throw Missing();
         db.Remove(item); plan.UpdatedAt = clock.GetUtcNow(); await recipes.SaveAsync(ct); await transaction.CommitAsync(ct);
     }
-    public async Task<(ShoppingListDto List, bool Created)> GenerateAsync(Guid userId, Guid planId, CancellationToken ct)
+    public Task<(ShoppingListDto List, bool Created)> GenerateAsync(Guid userId, Guid planId, CancellationToken ct) =>
+        BuildShoppingAsync(userId, planId, false, ct);
+
+    public async Task<ShoppingListDto> RefreshShoppingAsync(Guid userId, Guid planId, CancellationToken ct) =>
+        (await BuildShoppingAsync(userId, planId, true, ct)).List;
+
+    private async Task<(ShoppingListDto List, bool Created)> BuildShoppingAsync(Guid userId, Guid planId, bool refresh, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var plan = await LockPlan(userId, planId, ct);
         var existing = await db.Set<ShoppingList>().Where(x => x.MealPlanId == planId && x.UserId == userId).Select(x => (Guid?)x.Id).SingleOrDefaultAsync(ct);
-        if (existing.HasValue)
+        if (existing.HasValue && !refresh)
         {
             await transaction.CommitAsync(ct); return (await ListAsync(userId, existing.Value, ct), false);
         }
@@ -69,16 +77,48 @@ public sealed class PlanningService(RecipeHubDbContext db, RecipeService recipes
             join ingredient in db.Set<RecipeIngredient>() on recipe.Id equals ingredient.RecipeId
             where item.MealPlanId == planId
             select new { ingredient.IngredientId, ingredient.Unit, Quantity = ingredient.Quantity * item.Servings / recipe.Servings }).ToListAsync(ct);
-        if (rows.Count == 0) throw Invalid("Cannot generate a shopping list from an empty meal plan.");
-        var list = new ShoppingList { UserId = userId, MealPlanId = planId, Name = $"Week {plan.WeekStart:yyyy-MM-dd}", CreatedAt = clock.GetUtcNow(), UpdatedAt = clock.GetUtcNow() };
+        if (rows.Count == 0 && !existing.HasValue) throw Invalid("Cannot generate a shopping list from an empty meal plan.");
+        ShoppingList list;
+        var previous = new List<ShoppingListItem>();
+        if (existing.HasValue)
+        {
+            // Serialize against checkbox/quantity/note changes on the same list.
+            list = await db.Set<ShoppingList>().FromSqlInterpolated($"SELECT * FROM \"ShoppingLists\" WHERE \"Id\" = {existing.Value} AND \"UserId\" = {userId} FOR UPDATE").SingleAsync(ct);
+            await db.Entry(list).ReloadAsync(ct);
+            // Re-read children after the lock without one database round trip per item.
+            foreach (var entry in db.ChangeTracker.Entries<ShoppingListItem>().Where(entry => entry.Entity.ShoppingListId == list.Id).ToArray())
+                entry.State = EntityState.Detached;
+            list.Items = [];
+            previous = await db.Set<ShoppingListItem>().Where(item => item.ShoppingListId == list.Id).ToListAsync(ct);
+        }
+        else
+        {
+            list = new ShoppingList { UserId = userId, MealPlanId = planId, Name = $"Week {plan.WeekStart:yyyy-MM-dd}", CreatedAt = clock.GetUtcNow() };
+            db.Add(list);
+        }
+        var retained = new HashSet<Guid>();
+        var previousByIngredient = previous.ToDictionary(item => (item.IngredientId, item.Unit));
         foreach (var group in rows.GroupBy(x => new { x.IngredientId, x.Unit }))
         {
             var quantity = decimal.Ceiling(group.Sum(x => x.Quantity) * 1000m) / 1000m;
             if (quantity > 999999999.999m) throw Invalid("Aggregated shopping quantity exceeds supported size.");
-            list.Items.Add(new ShoppingListItem { ShoppingListId = list.Id, IngredientId = group.Key.IngredientId, Unit = group.Key.Unit, Quantity = quantity });
+            previousByIngredient.TryGetValue((group.Key.IngredientId, group.Key.Unit), out var item);
+            if (item is null)
+            {
+                item = new ShoppingListItem { ShoppingListId = list.Id, IngredientId = group.Key.IngredientId, Unit = group.Key.Unit, Quantity = quantity };
+                db.Add(item);
+            }
+            else if (!item.IsManuallyEdited && item.Quantity != quantity)
+            {
+                item.Quantity = quantity;
+                item.IsPurchased = false;
+            }
+            retained.Add(item.Id);
         }
-        db.Add(list); await recipes.SaveAsync(ct); await transaction.CommitAsync(ct);
-        return (await ListAsync(userId, list.Id, ct), true);
+        db.RemoveRange(previous.Where(item => !retained.Contains(item.Id)));
+        list.UpdatedAt = clock.GetUtcNow();
+        await recipes.SaveAsync(ct); await transaction.CommitAsync(ct);
+        return (await ListAsync(userId, list.Id, ct), !existing.HasValue);
     }
     public async Task<PageResult<ShoppingSummary>> ListsAsync(Guid userId, PageQuery page, CancellationToken ct)
     {
@@ -98,8 +138,11 @@ public sealed class PlanningService(RecipeHubDbContext db, RecipeService recipes
     public async Task<ShoppingItemDto> PatchItemAsync(Guid userId, Guid listId, Guid itemId, ShoppingPatch request, CancellationToken ct)
     {
         if (request.Quantity is null && request.IsPurchased is null && request.Note is null) throw Invalid("At least one field is required.");
-        var list = await db.Set<ShoppingList>().SingleOrDefaultAsync(x => x.Id == listId && x.UserId == userId, ct) ?? throw Missing();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var list = await db.Set<ShoppingList>().FromSqlInterpolated($"SELECT * FROM \"ShoppingLists\" WHERE \"Id\" = {listId} AND \"UserId\" = {userId} FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw Missing();
+        await db.Entry(list).ReloadAsync(ct);
         var item = await db.Set<ShoppingListItem>().SingleOrDefaultAsync(x => x.Id == itemId && x.ShoppingListId == listId, ct) ?? throw Missing();
+        await db.Entry(item).ReloadAsync(ct);
         if (request.Quantity.HasValue)
         {
             if (decimal.Round(request.Quantity.Value, 3) != request.Quantity) throw Invalid("Quantity supports at most 3 decimal places.");
@@ -108,6 +151,7 @@ public sealed class PlanningService(RecipeHubDbContext db, RecipeService recipes
         if (request.IsPurchased.HasValue) item.IsPurchased = request.IsPurchased.Value;
         if (request.Note is not null) item.Note = request.Note.Trim();
         list.UpdatedAt = clock.GetUtcNow(); await recipes.SaveAsync(ct);
+        await transaction.CommitAsync(ct);
         return await ItemDtos(db.Set<ShoppingListItem>().Where(x => x.Id == itemId)).SingleAsync(ct);
     }
 }

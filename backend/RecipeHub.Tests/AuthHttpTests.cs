@@ -30,16 +30,35 @@ public sealed class AuthHttpTests
         }));
 
     [Fact]
+    public async Task PasswordChange_RequiresBearerAndValidPasswordLength()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        var request = new ChangePasswordRequest("Current-Password-2026!", "Replacement-Password-2026!");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PutAsJsonAsync("/api/v1/users/me/password", request)).StatusCode);
+        var issuer = factory.Services.GetRequiredService<IAccessTokenIssuer>();
+        var profile = new UserProfile(Guid.NewGuid(), "password-test@example.test", "Password test", ["User"], DateTimeOffset.UtcNow);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issuer.Issue(profile).Value);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync("/api/v1/users/me/password", request with { NewPassword = "short" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PutAsJsonAsync("/api/v1/users/me/password", request)).StatusCode);
+    }
+
+    [Fact]
     public async Task AdminPolicy_RejectsUserRoleAndAcceptsAdminRole()
     {
         using var factory = CreateFactory();
         using var client = factory.CreateClient();
         var issuer = factory.Services.GetRequiredService<IAccessTokenIssuer>();
         var profile = new UserProfile(Guid.NewGuid(), "role-test@example.test", "Role test", ["User"], DateTimeOffset.UtcNow);
+        FakeAuthService.Profiles[profile.Id] = profile;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issuer.Issue(profile).Value);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/_tests/admin")).StatusCode);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", issuer.Issue(profile with { Roles = ["Admin"] }).Value);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/_tests/admin")).StatusCode);
+        FakeAuthService.Profiles[profile.Id] = profile with { Roles = ["Admin"] };
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/_tests/admin")).StatusCode);
+        FakeAuthService.Profiles[profile.Id] = profile;
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/_tests/admin")).StatusCode);
     }
 
     [Theory]
@@ -158,14 +177,16 @@ public sealed class AuthHttpTests
 
 internal sealed class FakeAuthService(IAccessTokenIssuer issuer) : IAuthService
 {
+    internal static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, UserProfile> Profiles = new();
     private static readonly UserProfile User = new(Guid.NewGuid(), "test@example.test", "Test", ["User"], DateTimeOffset.UtcNow);
     public Task<UserProfile> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken) => Task.FromResult(User);
     public Task<AuthSession> LoginAsync(LoginRequest request, CancellationToken cancellationToken) => Task.FromResult(
         new AuthSession(issuer.Issue(User), User, Convert.ToHexString(RandomNumberGenerator.GetBytes(64)), DateTimeOffset.UtcNow.AddDays(7)));
     public Task<AuthSession> RefreshAsync(string refreshToken, CancellationToken cancellationToken) => throw new NotImplementedException();
     public Task LogoutAsync(string? refreshToken, CancellationToken cancellationToken) => Task.CompletedTask;
-    public Task<UserProfile> GetProfileAsync(Guid userId, CancellationToken cancellationToken) => Task.FromResult(User);
+    public Task<UserProfile> GetProfileAsync(Guid userId, CancellationToken cancellationToken) => Task.FromResult(Profiles.TryGetValue(userId, out var profile) ? profile : User);
     public Task<UserProfile> UpdateProfileAsync(Guid userId, UpdateProfileRequest request, CancellationToken cancellationToken) => Task.FromResult(User with { DisplayName = request.DisplayName });
+    public Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request, CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 // Added to the application only by the test factory above, never to the production API.

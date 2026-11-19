@@ -5,6 +5,7 @@ namespace RecipeHub.Application.Features;
 
 public sealed record AdminUserDto(Guid Id, string Email, string DisplayName, string[] Roles, bool IsLocked, DateTimeOffset CreatedAt);
 public sealed record UserStatusWrite(bool IsLocked);
+public sealed record UserAdminWrite(bool IsAdmin);
 public sealed record DatasetReviewWrite(
     [Required, RegularExpression("^(Pending|Approved|Rejected)$")] string Status,
     [MaxLength(200)] string? SourceName,
@@ -19,9 +20,11 @@ public sealed record AnalyticsDto(int TotalUsers, int TotalRecipes, int ViewsInP
     RecipeMetric[] MostViewed, RecipeMetric[] MostFavorited, DailyActivity[] DailyActivity, StatusCount[] RecipeStatistics);
 public interface IAdministrationService
 {
+    Task<DatasetReviewDto?> GetDatasetReviewAsync(Guid recipeId, CancellationToken ct);
     Task<DatasetReviewDto> ReviewDatasetAsync(Guid actorId, Guid recipeId, DatasetReviewWrite request, CancellationToken ct);
     Task<PageResult<AdminUserDto>> UsersAsync(PageQuery page, CancellationToken ct);
     Task<AdminUserDto> SetUserStatusAsync(Guid actorId, Guid targetId, bool locked, CancellationToken ct);
+    Task<AdminUserDto> SetUserAdminAsync(Guid actorId, Guid targetId, bool isAdmin, CancellationToken ct);
     Task<PageResult<ReviewDto>> ReviewsAsync(string? status, PageQuery page, CancellationToken ct);
     Task<ReviewDto> ModerateAsync(Guid actorId, Guid id, string status, CancellationToken ct);
     Task<AnalyticsDto> AnalyticsAsync(DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct);

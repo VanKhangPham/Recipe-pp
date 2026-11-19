@@ -118,6 +118,31 @@ public sealed class PostgresAuthCollection;
 public sealed class PostgresAuthTests(PostgresAuthFixture fixture) : IClassFixture<PostgresAuthFixture>
 {
     [PostgresFact]
+    public async Task PasswordChange_RequiresCurrentPasswordAndRevokesRefreshTokens()
+    {
+        var request = PostgresAuthFixture.NewUser();
+        var owner = await fixture.WithService(auth => auth.RegisterAsync(request, default));
+        var session = await fixture.WithService(auth => auth.LoginAsync(new(request.Email, request.Password), default));
+        const string replacement = "Replacement-Password-2026!";
+        await Assert.ThrowsAsync<AuthException>(() => fixture.WithService(async auth =>
+        {
+            await auth.ChangePasswordAsync(owner.Id, new("Incorrect-current-password!", replacement), default);
+            return true;
+        }));
+        // A rejected attempt must preserve both the password and existing session.
+        await fixture.WithService(auth => auth.LoginAsync(new(request.Email, request.Password), default));
+        await fixture.WithService(async auth =>
+        {
+            await auth.ChangePasswordAsync(owner.Id, new(request.Password, replacement), default);
+            return true;
+        });
+        await Assert.ThrowsAsync<AuthException>(() => fixture.WithService(auth => auth.LoginAsync(new(request.Email, request.Password), default)));
+        await Assert.ThrowsAsync<AuthException>(() => fixture.WithService(auth => auth.RefreshAsync(session.RefreshToken, default)));
+        var changed = await fixture.WithService(auth => auth.LoginAsync(new(request.Email, replacement), default));
+        Assert.Equal(owner.Id, changed.User.Id);
+    }
+
+    [PostgresFact]
     public async Task RealHttp_RegisterLoginAndCurrentUser_WorkAgainstPostgres()
     {
         using var client = fixture.Factory.CreateClient();

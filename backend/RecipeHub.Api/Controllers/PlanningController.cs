@@ -11,7 +11,11 @@ namespace RecipeHub.Api.Controllers;
 public sealed class PlanningController(IPlanningService planning) : ControllerBase
 {
     [HttpGet("meal-plans")]
-    public Task<MealPlanDto> Plan([FromQuery] DateOnly weekStart, CancellationToken ct) => planning.PlanAsync(User.RequiredId(), weekStart, ct);
+    public async Task<ActionResult<MealPlanDto>> Plan([FromQuery] DateOnly weekStart, CancellationToken ct)
+    {
+        var plan = await planning.PlanAsync(User.RequiredId(), weekStart, ct);
+        return plan is null ? NotFound() : Ok(plan);
+    }
     [HttpPost("meal-plans")]
     public async Task<ActionResult<MealPlanDto>> Create(PlanWrite request, CancellationToken ct)
     {
@@ -34,6 +38,8 @@ public sealed class PlanningController(IPlanningService planning) : ControllerBa
     }
     [HttpGet("shopping-lists")]
     public Task<PageResult<ShoppingSummary>> Lists([FromQuery] PageQuery page, CancellationToken ct) => planning.ListsAsync(User.RequiredId(), page, ct);
+    [HttpPost("meal-plans/{id:guid}/shopping-list/refresh")]
+    public Task<ShoppingListDto> RefreshShopping(Guid id, CancellationToken ct) => planning.RefreshShoppingAsync(User.RequiredId(), id, ct);
     [HttpGet("shopping-lists/{id:guid}")]
     public Task<ShoppingListDto> List(Guid id, CancellationToken ct) => planning.ListAsync(User.RequiredId(), id, ct);
     [HttpPatch("shopping-lists/{id:guid}/items/{itemId:guid}")]

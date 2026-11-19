@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using RecipeHub.Application.Identity;
 
 namespace RecipeHub.Api.Controllers;
@@ -21,6 +22,15 @@ public sealed class UsersController(IAuthService auth) : ControllerBase
     {
         Response.Headers.CacheControl = "no-store";
         return Ok(await auth.UpdateProfileAsync(UserId(), request, cancellationToken));
+    }
+
+    [HttpPut("password")]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        Response.Headers.CacheControl = "no-store";
+        await auth.ChangePasswordAsync(UserId(), request, cancellationToken);
+        return NoContent();
     }
 
     private Guid UserId() => Guid.TryParse(User.FindFirst("sub")?.Value, out var id)

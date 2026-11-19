@@ -56,7 +56,13 @@ public static class AuthRegistration
                     var auth = context.HttpContext.RequestServices.GetRequiredService<IAuthService>();
                     try
                     {
-                        await auth.GetProfileAsync(userId, context.HttpContext.RequestAborted);
+                        var profile = await auth.GetProfileAsync(userId, context.HttpContext.RequestAborted);
+                        if (context.Principal?.Identity is ClaimsIdentity identity)
+                        {
+                            // Apply current database roles even when the JWT predates a role change.
+                            foreach (var claim in identity.FindAll(identity.RoleClaimType).ToArray()) identity.RemoveClaim(claim);
+                            foreach (var role in profile.Roles) identity.AddClaim(new Claim(identity.RoleClaimType, role));
+                        }
                     }
                     catch (AuthException exception) when (exception.Error == AuthError.Unauthorized)
                     {

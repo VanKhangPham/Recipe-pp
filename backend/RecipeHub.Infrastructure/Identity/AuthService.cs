@@ -147,6 +147,31 @@ public sealed class AuthService(RecipeHubDbContext database, UserManager<Applica
         return profile;
     }
 
+    public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var user = await LockUserAsync(userId, cancellationToken);
+        if (user is null || await users.IsLockedOutAsync(user)) throw InvalidCredentials();
+        if (!await users.CheckPasswordAsync(user, request.CurrentPassword))
+        {
+            if (!(await users.AccessFailedAsync(user)).Succeeded)
+                throw new InvalidOperationException("Cannot update login attempt counter.");
+            await transaction.CommitAsync(cancellationToken);
+            throw new AuthException(AuthError.Validation, "Current password is incorrect.");
+        }
+        var result = await users.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+        if (!result.Succeeded)
+            throw new AuthException(AuthError.Validation, "Password change validation failed.",
+                new() { ["newPassword"] = result.Errors.Select(error => error.Code).ToArray() });
+        if (!(await users.ResetAccessFailedCountAsync(user)).Succeeded)
+            throw new InvalidOperationException("Cannot reset login attempt counter.");
+        user.UpdatedAt = Now;
+        await database.RefreshTokens.Where(token => token.UserId == userId && token.RevokedAt == null)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(token => token.RevokedAt, (DateTimeOffset?)Now), cancellationToken);
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     private async Task<ApplicationUser?> LockUserAsync(Guid id, CancellationToken cancellationToken)
     {
         // AsNoTracking avoids reusing a stale user loaded before another request updated lockout.

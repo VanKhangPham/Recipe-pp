@@ -61,8 +61,15 @@ public sealed class SocialService(RecipeHubDbContext db, RecipeService recipes, 
     public async Task ViewAsync(Guid recipeId, Guid? userId, CancellationToken ct)
     {
         if (!await db.Recipes.AnyAsync(x => x.Id == recipeId && x.Status == "Published", ct)) throw Missing();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        if (userId.HasValue)
+        {
+            var key = $"recipe-view:{userId.Value}:{recipeId}";
+            await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", ct);
+        }
         if (userId.HasValue && await db.Set<RecipeView>().AnyAsync(x => x.UserId == userId && x.RecipeId == recipeId && x.ViewedAt > clock.GetUtcNow().AddMinutes(-15), ct)) return;
         db.Add(new RecipeView { RecipeId = recipeId, UserId = userId, ViewedAt = clock.GetUtcNow() }); await recipes.SaveAsync(ct);
+        await transaction.CommitAsync(ct);
     }
     public async Task<PreferencesWrite> PreferencesAsync(Guid userId, CancellationToken ct)
     {

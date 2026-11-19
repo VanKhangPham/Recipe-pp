@@ -15,6 +15,11 @@ namespace RecipeHub.Infrastructure.Features;
 public sealed class AdministrationService(RecipeHubDbContext db, RecipeService recipes, UserManager<ApplicationUser> users,
     RoleManager<IdentityRole<Guid>> roles, IAuthService auth, TimeProvider clock) : IAdministrationService
 {
+    public Task<DatasetReviewDto?> GetDatasetReviewAsync(Guid recipeId, CancellationToken ct) =>
+        db.Set<RecipeDatasetEntry>().AsNoTracking().Where(entry => entry.RecipeId == recipeId)
+            .Select(entry => new DatasetReviewDto(entry.RecipeId, entry.DatasetKey, entry.ReviewStatus,
+                entry.SourceName, entry.SourceUrl, entry.LicenseIdentifier)).SingleOrDefaultAsync(ct);
+
     public async Task<DatasetReviewDto> ReviewDatasetAsync(Guid actorId, Guid recipeId, DatasetReviewWrite request, CancellationToken ct)
     {
         if (request.Status is not ("Pending" or "Approved" or "Rejected")) throw Invalid("Invalid dataset review status.");
@@ -71,6 +76,44 @@ public sealed class AdministrationService(RecipeHubDbContext db, RecipeService r
         await recipes.SaveAsync(ct); await transaction.CommitAsync(ct);
         return await UserDtos(db.Users.Where(x => x.Id == targetId)).SingleAsync(ct);
     }
+    public async Task<AdminUserDto> SetUserAdminAsync(Guid actorId, Guid targetId, bool isAdmin, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        // Serialize role changes and account locking to preserve the last active Admin.
+        await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72100402)", ct);
+        var actor = await db.Users.AsNoTracking().SingleOrDefaultAsync(account => account.Id == actorId, ct);
+        if (actor is null || (actor.LockoutEnabled && actor.LockoutEnd > clock.GetUtcNow()) ||
+            !await users.IsInRoleAsync(actor, "Admin"))
+            throw new AuthException(AuthError.Unauthorized, "Administrator access is required.");
+        var target = await db.Users.SingleOrDefaultAsync(account => account.Id == targetId, ct) ?? throw Missing();
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"AspNetUsers\" WHERE \"Id\" = {targetId} FOR UPDATE", ct);
+        await db.Entry(target).ReloadAsync(ct);
+        var currentlyAdmin = await users.IsInRoleAsync(target, "Admin");
+        if (currentlyAdmin && !isAdmin && (!target.LockoutEnabled || target.LockoutEnd == null || target.LockoutEnd <= clock.GetUtcNow()))
+        {
+            var activeAdmins = await (from account in db.Users join link in db.UserRoles on account.Id equals link.UserId
+                join role in db.Roles on link.RoleId equals role.Id
+                where role.Name == "Admin" && (!account.LockoutEnabled || account.LockoutEnd == null || account.LockoutEnd <= clock.GetUtcNow())
+                select account.Id).Distinct().CountAsync(ct);
+            if (activeAdmins <= 1) throw Conflict("Cannot remove the last active administrator.");
+        }
+        if (currentlyAdmin != isAdmin)
+        {
+            if (isAdmin && !await roles.RoleExistsAsync("Admin") &&
+                !(await roles.CreateAsync(new IdentityRole<Guid>("Admin") { Id = Guid.NewGuid() })).Succeeded)
+                throw new InvalidOperationException("Cannot initialize Admin role.");
+            // Retain all unrelated roles, including the default User role.
+            var result = isAdmin ? await users.AddToRoleAsync(target, "Admin") : await users.RemoveFromRoleAsync(target, "Admin");
+            if (!result.Succeeded) throw Conflict("Role update conflict.");
+            await db.RefreshTokens.Where(token => token.UserId == targetId && token.RevokedAt == null)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(token => token.RevokedAt, (DateTimeOffset?)clock.GetUtcNow()), ct);
+            Audit(actorId, isAdmin ? "AdminGranted" : "AdminRevoked", "User", targetId);
+            await recipes.SaveAsync(ct);
+        }
+        await transaction.CommitAsync(ct);
+        return await UserDtos(db.Users.Where(account => account.Id == targetId)).SingleAsync(ct);
+    }
+
     private IQueryable<ReviewDto> ReviewsQuery(IQueryable<Review> reviews) => from review in reviews join user in db.Users on review.UserId equals user.Id
         select new ReviewDto(review.Id, review.RecipeId, new PublicAuthor(user.Id, user.DisplayName), review.Rating, review.Comment,
             review.CreatedAt, review.UpdatedAt, review.ModerationStatus);

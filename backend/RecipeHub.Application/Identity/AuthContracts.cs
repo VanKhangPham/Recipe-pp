@@ -14,6 +14,10 @@ public sealed record LoginRequest(
 public sealed record UpdateProfileRequest(
     [Required, StringLength(100, MinimumLength = 1)] string DisplayName);
 
+public sealed record ChangePasswordRequest(
+    [Required, MaxLength(128)] string CurrentPassword,
+    [Required, StringLength(128, MinimumLength = 12)] string NewPassword);
+
 public sealed record UserProfile(Guid Id, string Email, string DisplayName, string[] Roles, DateTimeOffset CreatedAt);
 public sealed record AccessToken(string Value, int ExpiresIn);
 public sealed record AuthSession(AccessToken AccessToken, UserProfile User, string RefreshToken, DateTimeOffset RefreshExpiresAt);
@@ -41,4 +45,5 @@ public interface IAuthService
     Task LogoutAsync(string? refreshToken, CancellationToken cancellationToken);
     Task<UserProfile> GetProfileAsync(Guid userId, CancellationToken cancellationToken);
     Task<UserProfile> UpdateProfileAsync(Guid userId, UpdateProfileRequest request, CancellationToken cancellationToken);
+    Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request, CancellationToken cancellationToken);
 }
