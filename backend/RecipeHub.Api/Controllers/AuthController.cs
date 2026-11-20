@@ -11,7 +11,7 @@ namespace RecipeHub.Api.Controllers;
 [AllowAnonymous]
 [Route("api/v1/auth")]
 [EnableRateLimiting("auth")]
-public sealed class AuthController(IAuthService auth, IWebHostEnvironment environment) : ControllerBase
+public sealed class AuthController(IAuthService auth) : ControllerBase
 {
     private const string RefreshCookie = "recipehub.refresh";
 
@@ -74,7 +74,7 @@ public sealed class AuthController(IAuthService auth, IWebHostEnvironment enviro
 
     private CookieOptions CookieOptions() => new()
     {
-        HttpOnly = true, Secure = !environment.IsDevelopment() || Request.IsHttps,
+        HttpOnly = true, Secure = Request.IsHttps,
         SameSite = SameSiteMode.Lax, Path = "/api/v1/auth", IsEssential = true
     };
 }
