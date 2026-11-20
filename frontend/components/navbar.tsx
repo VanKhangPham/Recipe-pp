@@ -61,8 +61,9 @@ export function Navbar() {
   const navLinks = [
     { label: "Trang chủ", href: "/" },
     { label: "Khám phá", href: "/recipes" },
-    { label: "Kế hoạch bữa ăn", href: "/meal-planner" },
-    { label: "Danh sách mua sắm", href: "/shopping-list" },
+    { label: "Tìm nguyên liệu", href: "/ingredient-search" },
+    { label: "Thực đơn", href: "/meal-planner" },
+    { label: "Đi chợ", href: "/shopping-list" },
     { label: "Gợi ý", href: "/recommendations" },
   ];
 
@@ -111,16 +112,16 @@ export function Navbar() {
             </span>
           </Link>
 
-          <nav className="hidden xl:flex items-center gap-space-xs p-1 bg-surface-container-low/60 rounded-full">
+          <nav className="hidden xl:flex items-center gap-0.5 p-1 bg-surface-container-low/70 rounded-full shrink-0">
             {navLinks.map((link) => {
               const isActive = pathname === link.href;
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`px-space-md py-1.5 rounded-full transition-colors font-body-md text-body-md whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-full transition-colors font-body-sm text-body-sm whitespace-nowrap ${
                     isActive
-                      ? "bg-surface-container-high text-on-surface font-semibold"
+                      ? "bg-surface-container-high text-on-surface font-semibold shadow-xs"
                       : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
                   }`}
                 >
@@ -132,10 +133,10 @@ export function Navbar() {
         </div>
 
         {/* Right side controls */}
-        <div className="flex items-center gap-space-sm lg:gap-space-md shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <form
             onSubmit={handleSearchSubmit}
-            className="hidden lg:flex items-center gap-space-sm bg-surface-container px-space-md py-2 rounded-xl text-on-surface-variant w-56 xl:w-72 shadow-inner"
+            className="hidden lg:flex items-center gap-2 bg-surface-container px-3 py-2 rounded-xl text-on-surface-variant w-44 xl:w-48 2xl:w-64 shadow-inner"
           >
             <Icon name="search" size={18} className="text-outline shrink-0" />
             <input
@@ -143,21 +144,22 @@ export function Navbar() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm kiếm món ăn..."
+              placeholder="Tìm món ăn..."
               className="bg-transparent font-body-sm text-body-sm text-on-surface placeholder:text-on-surface-variant/80 flex-1 focus:outline-none min-w-0"
             />
-            <kbd className="font-label-mono-sm text-label-mono-sm px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-mono shrink-0">
+            <kbd className="hidden 2xl:inline-block font-label-mono-sm text-label-mono-sm px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-mono shrink-0">
               Ctrl+K
             </kbd>
           </form>
 
-          <div className="flex items-center gap-space-xs sm:gap-space-sm shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <Link
               href="/recipes/new"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container-high hover:text-on-surface transition-all font-body-sm text-body-sm font-medium whitespace-nowrap shadow-[0_1px_4px_rgba(0,0,0,0.03)]"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-on-primary hover:opacity-95 transition-all font-body-sm text-body-sm font-medium whitespace-nowrap shadow-xs"
             >
-              <Icon name="add_circle" size={18} className="text-primary shrink-0" />
-              <span>Đăng công thức</span>
+              <Icon name="add_circle" size={18} className="shrink-0" />
+              <span className="hidden 2xl:inline">Đăng công thức</span>
+              <span className="2xl:hidden">Đăng bài</span>
             </Link>
 
             <ThemeToggle />
