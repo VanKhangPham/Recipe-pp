@@ -204,7 +204,11 @@ pipeline {
             }
             steps {
                 echo "=== Stage 6: Deploying to AWS EC2 (${params.EC2_USER}@${params.EC2_HOST}) ==="
-                sshagent(credentials: [env.EC2_SSH_CREDENTIALS_ID]) {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: env.EC2_SSH_CREDENTIALS_ID,
+                    keyFileVariable: 'EC2_SSH_KEY',
+                    usernameVariable: 'EC2_SSH_CRED_USER'
+                )]) {
                     withEnv([
                         "TARGET_HOST=${params.EC2_HOST}",
                         "TARGET_USER=${params.EC2_USER}",
@@ -213,7 +217,10 @@ pipeline {
                     ]) {
                         sh '''
                             set -eu
-                            ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=15 \
+                            chmod 600 "$EC2_SSH_KEY"
+                            echo "[Deploy] Loaded SSH key fingerprint:"
+                            ssh-keygen -lf "$EC2_SSH_KEY"
+                            ssh -i "$EC2_SSH_KEY" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=15 \
                                 "${TARGET_USER}@${TARGET_HOST}" \
                                 "TARGET_DIR='${TARGET_DIR}' TARGET_COMMIT='${TARGET_COMMIT}' bash -s" <<'REMOTE_EOF'
 set -euo pipefail
