@@ -16,8 +16,8 @@ pipeline {
         )
         string(
             name: 'EC2_HOST',
-            defaultValue: '3.25.166.221',
-            description: 'Public IPv4 or hostname of the RecipeHub AWS EC2 server.'
+            defaultValue: '',
+            description: 'Optional override. Leave blank to automatically use Jenkins global variable RECIPEHUB_EC2_HOST.'
         )
         string(
             name: 'EC2_USER',
@@ -203,14 +203,21 @@ pipeline {
                 expression { return params.DEPLOY_TO_EC2 }
             }
             steps {
-                echo "=== Stage 6: Deploying to AWS EC2 (${params.EC2_USER}@${params.EC2_HOST}) ==="
+                script {
+                    def resolvedHost = params.EC2_HOST?.trim() ?: env.RECIPEHUB_EC2_HOST?.trim()
+                    if (!resolvedHost) {
+                        error "EC2 host is not configured. Set Jenkins global variable RECIPEHUB_EC2_HOST (Manage Jenkins -> System) or pass EC2_HOST parameter."
+                    }
+                    env.RESOLVED_EC2_HOST = resolvedHost
+                }
+                echo "=== Stage 6: Deploying to AWS EC2 (${params.EC2_USER}@${env.RESOLVED_EC2_HOST}) ==="
                 withCredentials([sshUserPrivateKey(
                     credentialsId: env.EC2_SSH_CREDENTIALS_ID,
                     keyFileVariable: 'EC2_SSH_KEY',
                     usernameVariable: 'EC2_SSH_CRED_USER'
                 )]) {
                     withEnv([
-                        "TARGET_HOST=${params.EC2_HOST}",
+                        "TARGET_HOST=${env.RESOLVED_EC2_HOST}",
                         "TARGET_USER=${params.EC2_USER}",
                         "TARGET_DIR=${params.EC2_APP_DIR}",
                         "TARGET_COMMIT=${env.GIT_COMMIT ?: 'origin/main'}"
