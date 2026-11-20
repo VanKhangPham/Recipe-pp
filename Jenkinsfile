@@ -70,6 +70,7 @@ pipeline {
                 sh '''
                     set -eu
                     docker run --rm \
+                        --memory=2g --cpus=1.5 \
                         -u "$(id -u):$(id -g)" \
                         -e HOME=/tmp \
                         -e DOTNET_CLI_HOME=/tmp \
@@ -103,6 +104,7 @@ pipeline {
                 sh '''
                     set -eu
                     docker run --rm \
+                        --memory=2g --cpus=1.5 \
                         -u "$(id -u):$(id -g)" \
                         -e HOME=/tmp \
                         -e npm_config_cache=/npm-cache \
@@ -119,19 +121,25 @@ pipeline {
                             npx tsc --noEmit --incremental false
                             node --test tests/*.test.mjs
                         '
+                    rm -rf "$WORKSPACE/frontend/node_modules"
                 '''
             }
         }
 
         stage('4. Build Docker Images (Sequential)') {
             steps {
-                echo "=== Stage 4: Building & Tagging RecipeHub Docker Images (RAM-Safe Sequential) ==="
+                echo "=== Stage 4a: Building Backend Docker Image ==="
                 sh """
                     set -eu
-                    docker build -f infrastructure/docker/backend.Dockerfile \
+                    docker build --progress=plain \
+                        -f infrastructure/docker/backend.Dockerfile \
                         -t ${IMAGE_BACKEND}:${IMAGE_TAG} \
                         -t ${IMAGE_BACKEND}:latest .
-                    docker build \
+                """
+                echo "=== Stage 4b: Building Frontend Docker Image ==="
+                sh """
+                    set -eu
+                    docker build --progress=plain \
                         --build-arg NEXT_PUBLIC_RESTORE_SESSION=${params.RESTORE_LOGIN} \
                         -f infrastructure/docker/frontend.Dockerfile \
                         -t ${IMAGE_FRONTEND}:${IMAGE_TAG} \
