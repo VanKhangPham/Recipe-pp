@@ -2,12 +2,11 @@
 """
 RecipeHub Vietnamese Localization & Ordering Script (AWS RDS PostgreSQL 18)
 ---------------------------------------------------------------------------
-1. Prioritizes all 301 native Vietnamese recipes at the top of the catalog
-   (newest CreatedAt/PublishedAt) while keeping international recipes below.
-2. Translates all TheMealDB international recipe titles, descriptions,
-   ingredients, units, cooking steps, and image alt texts into natural
-   Vietnamese directly in AWS RDS.
-3. Pure Python 3 stdlib (zero pip dependencies), resumable & idempotent.
+1. Prioritizes all 301 native Vietnamese recipes at the top of the catalog.
+2. Translates & commits all international recipe titles, descriptions,
+   image alt texts, ingredients, and units FIRST (~15 seconds!).
+3. Translates & commits cooking steps in fast concurrent chunks (8 workers,
+   live progress every ~2s, 100% resumable).
 """
 
 import concurrent.futures
@@ -23,116 +22,50 @@ import urllib.request
 
 
 AREA_VI = {
-    "American": "Mỹ",
-    "British": "Anh",
-    "Canadian": "Canada",
-    "Chinese": "Trung Hoa",
-    "Croatian": "Croatia",
-    "Dutch": "Hà Lan",
-    "Egyptian": "Ai Cập",
-    "Filipino": "Philippines",
-    "French": "Pháp",
-    "Greek": "Hy Lạp",
-    "Indian": "Ấn Độ",
-    "Irish": "Ireland",
-    "Italian": "Ý",
-    "Jamaican": "Jamaica",
-    "Japanese": "Nhật Bản",
-    "Kenyan": "Kenya",
-    "Malaysian": "Malaysia",
-    "Mexican": "Mexico",
-    "Moroccan": "Ma-rốc",
-    "Polish": "Ba Lan",
-    "Portuguese": "Bồ Đào Nha",
-    "Russian": "Nga",
-    "Spanish": "Tây Ban Nha",
-    "Thai": "Thái Lan",
-    "Tunisian": "Tunisia",
-    "Turkish": "Thổ Nhĩ Kỳ",
-    "Ukrainian": "Ukraine",
-    "Uruguayan": "Uruguay",
-    "Vietnamese": "Việt Nam",
-    "Norwegian": "Na Uy",
-    "Australian": "Úc",
-    "Syrian": "Syria",
-    "Algerian": "Algeria",
-    "Argentinian": "Argentina",
-    "Saudi Arabian": "Ả Rập",
-    "Venezuelan": "Venezuela",
-    "International": "Quốc tế",
+    "American": "Mỹ", "British": "Anh", "Canadian": "Canada",
+    "Chinese": "Trung Hoa", "Croatian": "Croatia", "Dutch": "Hà Lan",
+    "Egyptian": "Ai Cập", "Filipino": "Philippines", "French": "Pháp",
+    "Greek": "Hy Lạp", "Indian": "Ấn Độ", "Irish": "Ireland",
+    "Italian": "Ý", "Jamaican": "Jamaica", "Japanese": "Nhật Bản",
+    "Kenyan": "Kenya", "Malaysian": "Malaysia", "Mexican": "Mexico",
+    "Moroccan": "Ma-rốc", "Polish": "Ba Lan", "Portuguese": "Bồ Đào Nha",
+    "Russian": "Nga", "Spanish": "Tây Ban Nha", "Thai": "Thái Lan",
+    "Tunisian": "Tunisia", "Turkish": "Thổ Nhĩ Kỳ", "Ukrainian": "Ukraine",
+    "Uruguayan": "Uruguay", "Vietnamese": "Việt Nam", "Norwegian": "Na Uy",
+    "Australian": "Úc", "Syrian": "Syria", "Algerian": "Algeria",
+    "Argentinian": "Argentina", "Saudi Arabian": "Ả Rập",
+    "Venezuelan": "Venezuela", "International": "Quốc tế",
 }
 
 CAT_VI = {
-    "Beef": "Thịt bò",
-    "Chicken": "Thịt gà",
-    "Pork": "Thịt heo",
-    "Lamb": "Thịt cừu",
-    "Goat": "Thịt dê",
-    "Seafood": "Hải sản",
-    "Vegetarian": "Món chay",
-    "Vegan": "Thuần chay",
-    "Side": "Món ăn kèm",
-    "Pasta": "Mì Ý & Pasta",
-    "Breakfast": "Bữa sáng",
-    "Dessert": "Tráng miệng",
-    "Starter": "Khai vị",
-    "Miscellaneous": "Đặc sản",
+    "Beef": "Thịt bò", "Chicken": "Thịt gà", "Pork": "Thịt heo",
+    "Lamb": "Thịt cừu", "Goat": "Thịt dê", "Seafood": "Hải sản",
+    "Vegetarian": "Món chay", "Vegan": "Thuần chay", "Side": "Món ăn kèm",
+    "Pasta": "Mì Ý & Pasta", "Breakfast": "Bữa sáng", "Dessert": "Tráng miệng",
+    "Starter": "Khai vị", "Miscellaneous": "Đặc sản",
 }
 
 UNIT_VI = {
-    "cup": "chén",
-    "cups": "chén",
-    "tbsp": "muỗng canh",
-    "tbs": "muỗng canh",
-    "tablespoon": "muỗng canh",
-    "tablespoons": "muỗng canh",
-    "tsp": "muỗng cà phê",
-    "teaspoon": "muỗng cà phê",
-    "teaspoons": "muỗng cà phê",
-    "clove": "tép",
-    "cloves": "tép",
-    "slice": "lát",
-    "slices": "lát",
-    "pinch": "nhúm",
-    "handful": "nắm",
-    "sprig": "nhánh",
-    "sprigs": "nhánh",
-    "stalk": "cọng",
-    "stalks": "cọng",
-    "bunch": "bó",
-    "can": "lon",
-    "cans": "lon",
-    "tin": "hộp",
-    "tins": "hộp",
-    "piece": "miếng",
-    "pieces": "miếng",
-    "sheet": "tờ",
-    "sheets": "tờ",
-    "leaf": "lá",
-    "leaves": "lá",
-    "stick": "thanh",
-    "sticks": "thanh",
-    "drop": "giọt",
-    "drops": "giọt",
-    "dash": "chút",
-    "packet": "gói",
-    "packets": "gói",
-    "pkg": "gói",
-    "bottle": "chai",
-    "jar": "hũ",
-    "large": "trái lớn",
-    "medium": "trái vừa",
-    "small": "trái nhỏ",
-    "to": "vừa đủ",
-    "chopped": "phần",
-    "diced": "phần",
-    "sliced": "lát",
-    "grated": "phần",
-    "fresh": "phần",
-    "whole": "nguyên",
+    "cup": "chén", "cups": "chén", "tbsp": "muỗng canh", "tbs": "muỗng canh",
+    "tablespoon": "muỗng canh", "tablespoons": "muỗng canh",
+    "tsp": "muỗng cà phê", "teaspoon": "muỗng cà phê", "teaspoons": "muỗng cà phê",
+    "clove": "tép", "cloves": "tép", "slice": "lát", "slices": "lát",
+    "pinch": "nhúm", "handful": "nắm", "sprig": "nhánh", "sprigs": "nhánh",
+    "stalk": "cọng", "stalks": "cọng", "bunch": "bó", "can": "lon",
+    "cans": "lon", "tin": "hộp", "tins": "hộp", "piece": "miếng",
+    "pieces": "miếng", "sheet": "tờ", "sheets": "tờ", "leaf": "lá",
+    "leaves": "lá", "stick": "thanh", "sticks": "thanh", "drop": "giọt",
+    "drops": "giọt", "dash": "chút", "packet": "gói", "packets": "gói",
+    "pkg": "gói", "bottle": "chai", "jar": "hũ", "large": "trái lớn",
+    "medium": "trái vừa", "small": "trái nhỏ", "to": "vừa đủ",
+    "chopped": "phần", "diced": "phần", "sliced": "lát",
+    "grated": "phần", "fresh": "phần", "whole": "nguyên",
 }
 
-VIET_DIACRITIC_RE = re.compile(r"[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]", re.IGNORECASE)
+VIET_DIACRITIC_RE = re.compile(
+    r"[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]",
+    re.IGNORECASE,
+)
 
 
 def load_env_file(path: str) -> dict[str, str]:
@@ -156,13 +89,12 @@ def sql_str(value: str, max_len: int | None = None) -> str:
     return "'" + text.replace("'", "''") + "'"
 
 
-def translate_single(text: str) -> str:
-    clean = re.sub(r"\s+", " ", text.strip())
-    if not clean:
-        return clean
+def translate_raw(text: str) -> str:
+    if not text.strip():
+        return text
     url = (
         "https://translate.googleapis.com/translate_a/single"
-        "?client=gtx&sl=en&tl=vi&dt=t&q=" + urllib.parse.quote(clean)
+        "?client=gtx&sl=en&tl=vi&dt=t&q=" + urllib.parse.quote(text)
     )
     headers = {"User-Agent": "Mozilla/5.0"}
     for attempt in range(4):
@@ -171,36 +103,60 @@ def translate_single(text: str) -> str:
             with urllib.request.urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
             translated = "".join(part[0] for part in data[0] if part and part[0]).strip()
-            return translated or clean
+            return translated or text
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, IndexError):
-            time.sleep(0.5 * (attempt + 1))
-    return clean
+            time.sleep(0.4 * (attempt + 1))
+    return text
 
 
 def translate_batch(items: list[str]) -> list[str]:
     if not items:
         return []
-    if len(items) == 1:
-        return [translate_single(items[0])]
-
     cleaned = [re.sub(r"[\r\n]+", " ", s).strip() for s in items]
-    joined = "\n".join(cleaned)
-    translated_joined = translate_single(joined)
-    parts = [p.strip() for p in translated_joined.split("\n")]
-    if len(parts) == len(items) and all(parts):
+    if len(cleaned) == 1:
+        return [translate_raw(cleaned[0])]
+
+    # Use explicit numeric tags so multi-sentence paragraphs stay aligned
+    tagged = "\n".join(f"[[{i}]] {s}" for i, s in enumerate(cleaned))
+    out = translate_raw(tagged)
+    matches = list(re.finditer(r"\[\[\s*(\d+)\s*\]\]", out))
+    if len(matches) == len(cleaned):
+        parsed = [""] * len(cleaned)
+        valid = True
+        for idx, m in enumerate(matches):
+            num = int(m.group(1))
+            if num != idx:
+                valid = False
+                break
+            start = m.end()
+            end = matches[idx + 1].start() if idx + 1 < len(matches) else len(out)
+            parsed[idx] = out[start:end].strip()
+        if valid and all(parsed):
+            return parsed
+
+    # Fallback: newline split
+    parts = [p.strip() for p in translate_raw("\n".join(cleaned)).split("\n") if p.strip()]
+    if len(parts) == len(cleaned):
         return parts
 
-    # Safe fallback: translate individually if line count mismatched
-    return [translate_single(s) for s in cleaned]
+    # Final fallback: translate individually
+    return [translate_raw(s) for s in cleaned]
 
 
-def translate_many(items: list[tuple[str, str]], label: str, max_chars: int = 2400, max_batch: int = 20) -> dict[str, str]:
-    # Group into safe batches under max_chars
+def translate_many(
+    items: list[tuple[str, str]],
+    label: str,
+    max_chars: int = 2400,
+    max_batch: int = 20,
+    workers: int = 8,
+) -> dict[str, str]:
+    if not items:
+        return {}
     batches: list[list[tuple[str, str]]] = []
     cur: list[tuple[str, str]] = []
     cur_len = 0
     for key, text in items:
-        tlen = len(text) + 2
+        tlen = len(text) + 10
         if cur and (cur_len + tlen > max_chars or len(cur) >= max_batch):
             batches.append(cur)
             cur = []
@@ -210,22 +166,24 @@ def translate_many(items: list[tuple[str, str]], label: str, max_chars: int = 24
     if cur:
         batches.append(cur)
 
-    print(f"  -> Translating {len(items)} {label} in {len(batches)} batches...", flush=True)
+    print(f"  -> Translating {len(items)} {label} in {len(batches)} batches ({workers} workers)...", flush=True)
     result: dict[str, str] = {}
 
     def work(batch: list[tuple[str, str]]) -> list[tuple[str, str]]:
-        texts = [t for _, t in batch]
-        out = translate_batch(texts)
+        out = translate_batch([t for _, t in batch])
         return [(k, v) for (k, _), v in zip(batch, out)]
 
     done = 0
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+    batch_done = 0
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
         for pairs in pool.map(work, batches):
             for k, v in pairs:
                 result[k] = v
             done += len(pairs)
-            if done % 200 == 0 or done == len(items):
-                print(f"     {label}: {done}/{len(items)}", flush=True)
+            batch_done += 1
+            if batch_done % 10 == 0 or batch_done == len(batches):
+                pct = (done * 100.0) / len(items)
+                print(f"     {label}: {done}/{len(items)} ({pct:.0f}%)", flush=True)
     return result
 
 
@@ -238,11 +196,7 @@ def run_psql(env: dict[str, str], sql: str | None = None, sql_file: str | None =
         "psql", "-v", "ON_ERROR_STOP=1",
         "-h", env["DB_HOST"], "-U", env["DB_USER"], "-d", env["DB_NAME"],
     ]
-    if tuples_only:
-        cmd += ["-t", "-A", "-F", "\t"]
-    else:
-        cmd += ["-q"]
-
+    cmd += ["-t", "-A", "-F", "\t"] if tuples_only else ["-q"]
     if sql_file:
         with open(sql_file, "rb") as f_in:
             proc = subprocess.run(cmd, stdin=f_in, check=True, capture_output=True, text=True)
@@ -263,7 +217,7 @@ def main() -> int:
         print("ERROR: Missing DB_HOST or PGPASSWORD.", file=sys.stderr)
         return 1
 
-    print("[1/5] Putting 301 native Vietnamese recipes first on the homepage...", flush=True)
+    print("[1/4] Ordering 301 native Vietnamese recipes at the top of the homepage...", flush=True)
     run_psql(
         env,
         sql="""
@@ -290,7 +244,7 @@ COMMIT;
 """,
     )
 
-    print("[2/5] Reading international recipes, ingredients & steps to translate...", flush=True)
+    print("[2/4] Translating & committing recipe titles, descriptions, ingredients & units...", flush=True)
     recipes_raw = run_psql(
         env,
         sql="""
@@ -300,13 +254,7 @@ WHERE "Slug" LIKE 'themealdb-%';
 """,
         tuples_only=True,
     )
-    recipe_rows: list[tuple[str, str, str]] = []
-    for line in recipes_raw.splitlines():
-        parts = line.split("\t")
-        if len(parts) >= 3:
-            recipe_rows.append((parts[0], parts[1], parts[2]))
-
-    # Only translate titles that don't already look Vietnamese
+    recipe_rows = [tuple(line.split("\t")[:3]) for line in recipes_raw.splitlines() if len(line.split("\t")) >= 3]
     titles_to_translate = [(rid, title) for rid, title, _ in recipe_rows if not VIET_DIACRITIC_RE.search(title)]
 
     ing_raw = run_psql(
@@ -320,12 +268,72 @@ WHERE r."Slug" LIKE 'themealdb-%';
 """,
         tuples_only=True,
     )
-    ing_to_translate: list[tuple[str, str]] = []
-    for line in ing_raw.splitlines():
-        parts = line.split("\t")
-        if len(parts) >= 2 and not VIET_DIACRITIC_RE.search(parts[1]):
-            ing_to_translate.append((parts[0], parts[1]))
+    ing_to_translate = [
+        (parts[0], parts[1])
+        for line in ing_raw.splitlines()
+        for parts in [line.split("\t")]
+        if len(parts) >= 2 and not VIET_DIACRITIC_RE.search(parts[1])
+    ]
 
+    vi_titles = translate_many(titles_to_translate, "recipe titles", max_chars=2200, max_batch=30, workers=8)
+    vi_ings = translate_many(ing_to_translate, "ingredients", max_chars=2000, max_batch=35, workers=8)
+
+    desc_re = re.compile(r"Công thức chuẩn ([^()]+?)\s*\(([^)]+)\)")
+    sql_meta: list[str] = ["BEGIN;"]
+    for rid, orig_title, orig_desc in recipe_rows:
+        vn_title = vi_titles.get(rid, orig_title).strip()
+        if vn_title:
+            vn_title = vn_title[0].upper() + vn_title[1:]
+        m = desc_re.search(orig_desc)
+        if m:
+            area_vn = AREA_VI.get(m.group(1).strip(), m.group(1).strip())
+            cat_vn = CAT_VI.get(m.group(2).strip(), m.group(2).strip())
+            vn_desc = (
+                f"Món {vn_title} (Ẩm thực {area_vn} · {cat_vn}) đậm đà, dễ thực hiện tại nhà "
+                f"với nguyên liệu chọn lọc và hướng dẫn chi tiết từng bước."
+            )
+        elif "Công thức chuẩn" in orig_desc:
+            vn_desc = f"Công thức món {vn_title} thơm ngon, dễ nấu với đầy đủ nguyên liệu và hướng dẫn chi tiết."
+        else:
+            vn_desc = orig_desc
+        sql_meta.append(
+            f'UPDATE public."Recipes" SET "Title" = {sql_str(vn_title, 200)}, '
+            f'"Description" = {sql_str(vn_desc)}, "UpdatedAt" = now() '
+            f'WHERE "Id" = {sql_str(rid)}::uuid;'
+        )
+        sql_meta.append(
+            f'UPDATE public."RecipeImages" SET "AltText" = {sql_str(vn_title, 200)} '
+            f'WHERE "RecipeId" = {sql_str(rid)}::uuid;'
+        )
+
+    for iid, vn_name in vi_ings.items():
+        clean_name = vn_name.strip()
+        if clean_name:
+            clean_name = clean_name[0].upper() + clean_name[1:]
+            sql_meta.append(
+                f'UPDATE public."Ingredients" SET "Name" = {sql_str(clean_name, 150)} '
+                f'WHERE "Id" = {sql_str(iid)}::uuid;'
+            )
+
+    for en_u, vi_u in UNIT_VI.items():
+        sql_meta.append(
+            f'UPDATE public."RecipeIngredients" SET "Unit" = {sql_str(vi_u, 20)} '
+            f'WHERE lower(trim("Unit")) = {sql_str(en_u)};'
+        )
+        sql_meta.append(
+            f'UPDATE public."Ingredients" SET "DefaultUnit" = {sql_str(vi_u, 20)} '
+            f'WHERE lower(trim("DefaultUnit")) = {sql_str(en_u)};'
+        )
+
+    sql_meta.append("COMMIT;")
+    meta_path = "/tmp/recipehub_translate_meta.sql"
+    with open(meta_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(sql_meta) + "\n")
+    run_psql(env, sql_file=meta_path)
+    os.remove(meta_path)
+    print("  -> Committed ALL recipe titles, descriptions, ingredients & units to AWS RDS!", flush=True)
+
+    print("[3/4] Translating & committing cooking steps in resumable chunks...", flush=True)
     steps_raw = run_psql(
         env,
         sql="""
@@ -336,101 +344,44 @@ WHERE r."Slug" LIKE 'themealdb-%';
 """,
         tuples_only=True,
     )
-    steps_to_translate: list[tuple[str, str]] = []
-    for line in steps_raw.splitlines():
-        parts = line.split("\t")
-        if len(parts) >= 2 and not VIET_DIACRITIC_RE.search(parts[1]):
-            steps_to_translate.append((parts[0], parts[1]))
+    steps_to_translate = [
+        (parts[0], parts[1])
+        for line in steps_raw.splitlines()
+        for parts in [line.split("\t")]
+        if len(parts) >= 2 and not VIET_DIACRITIC_RE.search(parts[1])
+    ]
 
-    print(
-        f"  Found {len(titles_to_translate)} titles, {len(ing_to_translate)} ingredients, {len(steps_to_translate)} steps needing Vietnamese translation.",
-        flush=True,
-    )
-
-    print("[3/5] Translating titles, ingredients & cooking steps into Vietnamese...", flush=True)
-    vi_titles = translate_many(titles_to_translate, "recipe titles", max_chars=2200, max_batch=30)
-    vi_ings = translate_many(ing_to_translate, "ingredients", max_chars=2000, max_batch=35)
-    vi_steps = translate_many(steps_to_translate, "cooking steps", max_chars=2500, max_batch=15)
-
-    print("[4/5] Building Vietnamese SQL update payload...", flush=True)
-    sql_lines: list[str] = ["BEGIN;"]
-
-    # Update recipes titles + natural Vietnamese descriptions + image alt text
-    desc_re = re.compile(r"Công thức chuẩn ([^()]+?)\s*\(([^)]+)\)")
-    for rid, orig_title, orig_desc in recipe_rows:
-        vn_title = vi_titles.get(rid, orig_title).strip()
-        if vn_title:
-            vn_title = vn_title[0].upper() + vn_title[1:]
-        m = desc_re.search(orig_desc)
-        if m:
-            area_en = m.group(1).strip()
-            cat_en = m.group(2).strip()
-            area_vn = AREA_VI.get(area_en, area_en)
-            cat_vn = CAT_VI.get(cat_en, cat_en)
-            vn_desc = (
-                f"Món {vn_title} (Ẩm thực {area_vn} · {cat_vn}) đậm đà, dễ thực hiện tại nhà "
-                f"với nguyên liệu chọn lọc và hướng dẫn chi tiết từng bước."
-            )
-        else:
-            vn_desc = f"Công thức món {vn_title} thơm ngon, dễ nấu với đầy đủ nguyên liệu và hướng dẫn chi tiết."
-
-        sql_lines.append(
-            f'UPDATE public."Recipes" SET "Title" = {sql_str(vn_title, 200)}, '
-            f'"Description" = {sql_str(vn_desc)}, "UpdatedAt" = now() '
-            f'WHERE "Id" = {sql_str(rid)}::uuid;'
+    chunk_size = 600
+    for start in range(0, len(steps_to_translate), chunk_size):
+        chunk = steps_to_translate[start : start + chunk_size]
+        vi_chunk = translate_many(
+            chunk,
+            f"cooking steps [{start + 1}-{min(start + chunk_size, len(steps_to_translate))}/{len(steps_to_translate)}]",
+            max_chars=2400,
+            max_batch=12,
+            workers=8,
         )
-        sql_lines.append(
-            f'UPDATE public."RecipeImages" SET "AltText" = {sql_str(vn_title, 200)} '
-            f'WHERE "RecipeId" = {sql_str(rid)}::uuid;'
-        )
+        sql_steps = ["BEGIN;"]
+        for sid, vn_inst in vi_chunk.items():
+            clean_inst = vn_inst.strip()
+            if clean_inst:
+                sql_steps.append(
+                    f'UPDATE public."RecipeSteps" SET "Instruction" = {sql_str(clean_inst)} '
+                    f'WHERE "Id" = {sql_str(sid)}::uuid;'
+                )
+        sql_steps.append("COMMIT;")
+        step_path = "/tmp/recipehub_translate_steps.sql"
+        with open(step_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(sql_steps) + "\n")
+        run_psql(env, sql_file=step_path)
+        os.remove(step_path)
 
-    # Update ingredient display names (keeping NormalizedName intact so zero unique conflict)
-    for iid, vn_name in vi_ings.items():
-        clean_name = vn_name.strip()
-        if clean_name:
-            clean_name = clean_name[0].upper() + clean_name[1:]
-            sql_lines.append(
-                f'UPDATE public."Ingredients" SET "Name" = {sql_str(clean_name, 150)} '
-                f'WHERE "Id" = {sql_str(iid)}::uuid;'
-            )
-
-    # Translate common English cooking units in RecipeIngredients & Ingredients
-    for en_u, vi_u in UNIT_VI.items():
-        sql_lines.append(
-            f'UPDATE public."RecipeIngredients" SET "Unit" = {sql_str(vi_u, 20)} '
-            f'WHERE lower(trim("Unit")) = {sql_str(en_u)};'
-        )
-        sql_lines.append(
-            f'UPDATE public."Ingredients" SET "DefaultUnit" = {sql_str(vi_u, 20)} '
-            f'WHERE lower(trim("DefaultUnit")) = {sql_str(en_u)};'
-        )
-
-    # Update cooking steps
-    for sid, vn_inst in vi_steps.items():
-        clean_inst = vn_inst.strip()
-        if clean_inst:
-            sql_lines.append(
-                f'UPDATE public."RecipeSteps" SET "Instruction" = {sql_str(clean_inst)} '
-                f'WHERE "Id" = {sql_str(sid)}::uuid;'
-            )
-
-    sql_lines.append("COMMIT;")
-    sql_lines.append('ANALYZE public."Recipes", public."Ingredients", public."RecipeSteps";')
-    sql_path = "/tmp/recipehub_translate_vi.sql"
-    with open(sql_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(sql_lines) + "\n")
-
-    print(f"[5/5] Applying Vietnamese translations to AWS RDS ({len(sql_lines)} SQL statements)...", flush=True)
-    run_psql(env, sql_file=sql_path)
-    try:
-        os.remove(sql_path)
-    except OSError:
-        pass
-
+    print("[4/4] Running ANALYZE & verifying top homepage recipes...", flush=True)
     sample = run_psql(
         env,
         sql="""
-SELECT "Title", left("Description", 70) AS desc_preview
+ANALYZE public."Recipes", public."Ingredients", public."RecipeSteps";
+SELECT "Title", left("Description", 75) AS desc_preview
 FROM public."Recipes"
 WHERE "Status" = 'Published'
 ORDER BY "CreatedAt" DESC
