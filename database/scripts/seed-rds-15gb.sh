@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# RecipeHub AWS RDS PostgreSQL 18 — Safe 15 GB Scale Seeder
+# RecipeHub AWS RDS PostgreSQL 18 — Safe 15 GB Scale Seeder (Keepalive + Retry)
 # ------------------------------------------------------------------------------
 # - Uses PostgreSQL 18 native uuidv7() + monotonic OccurredAt so all 3 B-tree
 #   indexes on AuditLogs append sequentially (zero random B-tree thrashing on
 #   db.t4g.micro 1 GB RAM).
-# - Commits independently every 500,000 rows (~225 MB/batch) so WAL stays tiny
-#   and progress is 100% resumable.
+# - Enables libpq TCP keepalives + per-batch timeout & retry so dead TCP sockets
+#   never hang.
+# - Commits independently every 250,000 rows (~108 MB/batch) so progress is
+#   100% resumable.
 # - Automatically updates /home/ubuntu/recipehub/backup_nightly.sh to exclude
 #   AuditLogs data from local EC2 pg_dump so EC2's 17 GB disk never fills up.
 # ==============================================================================
@@ -15,7 +17,7 @@ set -euo pipefail
 TARGET_GB="${1:-15}"
 # Add 100 MB safety margin above target GB so pg_size_pretty cleanly displays >= 15 GB
 TARGET_BYTES=$(( TARGET_GB * 1024 * 1024 * 1024 + 100 * 1024 * 1024 ))
-BATCH_ROWS=500000
+BATCH_ROWS=250000
 
 if [ ! -f /home/ubuntu/.backup.env ]; then
   echo "ERROR: /home/ubuntu/.backup.env not found." >&2
@@ -24,12 +26,13 @@ fi
 # shellcheck disable=SC1091
 source /home/ubuntu/.backup.env
 
+CONN_STR="host=${DB_HOST} port=5432 dbname=${DB_NAME} user=${DB_USER} sslmode=require keepalives=1 keepalives_idle=20 keepalives_interval=10 keepalives_count=3 connect_timeout=15"
+
 run_psql() {
-  docker run --rm -i \
+  timeout 240 docker run --rm -i \
     -e PGPASSWORD="$PGPASSWORD" \
-    -e PGSSLMODE=require \
     postgres:18-alpine \
-    psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" "$@"
+    psql -v ON_ERROR_STOP=1 "$CONN_STR" "$@"
 }
 
 # 1. Protect EC2 local disk: ensure nightly pg_dump excludes benchmark AuditLogs data
@@ -74,8 +77,11 @@ while [ "$CURRENT_BYTES" -lt "$TARGET_BYTES" ]; do
   BATCH=$((BATCH + 1))
   B_START=$(date +%s)
 
-  run_psql -q <<SQL
+  BATCH_OK=false
+  for attempt in 1 2 3; do
+    if run_psql -q <<SQL
 SET synchronous_commit = off;
+SET statement_timeout = '180s';
 SET work_mem = '32MB';
 INSERT INTO public."AuditLogs" ("Id", "ActorUserId", "Action", "EntityType", "EntityId", "OccurredAt")
 SELECT
@@ -87,6 +93,19 @@ SELECT
     now() + (gs * interval '1 microsecond')
 FROM generate_series(1, ${BATCH_ROWS}) AS gs;
 SQL
+    then
+      BATCH_OK=true
+      break
+    else
+      echo "[Batch $(printf '%03d' "$BATCH")] Warning: attempt ${attempt} failed/timed out, retrying in 5s..."
+      sleep 5
+    fi
+  done
+
+  if [ "$BATCH_OK" != "true" ]; then
+    echo "ERROR: Batch ${BATCH} failed after 3 attempts. Re-run script to resume." >&2
+    exit 1
+  fi
 
   CURRENT_BYTES=$(run_psql -t -A -c "SELECT pg_database_size(current_database());")
   B_END=$(date +%s)
@@ -96,10 +115,11 @@ SQL
   CUR_GB=$(awk -v c="$CURRENT_BYTES" 'BEGIN { printf "%.2f", c/1073741824 }')
   echo "[Batch $(printf '%03d' "$BATCH")] Size: ${CUR_GB} GB (${PCT}%) | Batch: ${BATCH_SEC}s | Elapsed: ${ELAPSED}s"
 
-  if [ "$BATCH" -ge 120 ]; then
-    echo "Reached safety batch cap (120). Stopping."
+  if [ "$BATCH" -ge 200 ]; then
+    echo "Reached safety batch cap (200). Stopping."
     break
   fi
+  sleep 2
 done
 
 echo "[Finalize] Running ANALYZE on AuditLogs and printing final DB report..."
