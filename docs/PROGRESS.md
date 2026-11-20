@@ -421,3 +421,21 @@ Trạng thái: **Completed** cho milestone Authentication cơ bản có kiểm t
   - Restore vào container `postgres:18` cách ly (`recipehub_restore_verify`): **`3,95s`**.
   - Đối chiếu khớp 100%: `public_tables = 29`, `total_recipes = 301`, `published_recipes = 23`, `dataset_entries = 300`, `approved_entries = 22`, `ingredients = 96`, `recipe_ingredients = 1783`, `recipe_steps = 613`, `categories = 7`, `roles = 2`, `users = 14`, `recipe_views = 18400`, `shopping_list_items = 50001`, `audit_logs = 575004`, `restored_db_size = 188 MB`.
   - Rollback container `8080` về `recipehub-api:3c78330` (`live=Healthy, ready=Healthy`) và Roll-forward lên `recipehub-api:d1bb66e` (`live=Healthy, ready=Healthy`).
+
+
+## 2026-11-20 — Hoàn tất triển khai AWS EC2 + RDS 15.20 GB, 1,091 món tiếng Việt có ảnh thật, UI mới & Jenkins CI/CD tự động (`v1.0.0`)
+
+### Hạ tầng đám mây AWS (`ap-southeast-2` Sydney)
+- Triển khai **AWS RDS PostgreSQL 18.3** (`recipehub-db`, `db.t4g.micro`, 60 GiB gp3, Private VPC) và **AWS EC2 Ubuntu 24.04** (`recipehub-ec2`, `t3.small`, 30 GiB gp3 + 2 GiB Swap).
+- Di chuyển toàn bộ database từ Neon (`recipehub_dev`, dump `33 MB`) sang AWS RDS (`recipehub`), chạy cụm fullstack `docker compose` (`recipehub-api`, `recipehub-frontend`, `recipehub-gateway`).
+- Cấu hình tự khởi động `recipehub.service` (`enabled`) và cronjob backup hằng đêm `0 2 * * *` (`/home/ubuntu/recipehub/backup_nightly.sh`, kiểm chứng file `33 MB` và bật `--exclude-table-data='public."AuditLogs"'` bảo vệ đĩa EC2).
+- Diễn tập Rollback (`45ed71b` -> `4a5891c`) và Roll-forward (`main`): cả 2 chiều `live=Healthy | ready=Healthy`.
+
+### Kho dữ liệu 100% tiếng Việt & Quy mô 15.20 GB
+- Xuất bản sạch 301 món Việt Nam đầu trang chủ + nhập 790 món thật kèm ảnh thật từ TheMealDB Open API và Việt hóa toàn bộ tên món, mô tả, nguyên liệu, đơn vị và 4,698 bước nấu: **1,091 công thức Published (100% có ảnh thật)**, **1,041 nguyên liệu**, **5,455 bước nấu**, **9 danh mục**.
+- Nâng dung lượng AWS RDS lên **`15.20 GB`** (`35,325,006` bản ghi `AuditLogs` dùng `uuidv7()` PostgreSQL 18). Hiệu năng đo thực tế tại mốc `15.20 GB`: `/health/live` `1.33 ms`, `/health/ready` `171.1 ms`, `GET /api/v1/recipes?page=1&pageSize=20` `112.9 ms`, Full-Text Search `?Q=trứng` `58.1 ms`, `/` SSR `4.60 ms`.
+
+### Giao diện & Jenkins CI/CD tự động trên VMware
+- Thiết kế lại trang chủ (`home-mobile.tsx`) và tối ưu thanh điều hướng (`navbar.tsx`, `theme-toggle.tsx`), bật `images.unoptimized = true` khắc phục hoàn toàn lỗi ảnh vỡ và tải song song phân trang danh mục.
+- Gắn Ubuntu VMware làm SSH Agent riêng (`recipehub-docker-agent`, `1 executor`, `-Xmx256m`, giữ nguyên 100% dữ liệu/container dự án cũ), cấu hình Credentials riêng (`recipehub-ubuntu-agent-ssh`, `recipehub-ec2-ssh`), biến toàn cục `RECIPEHUB_EC2_HOST`, và **Poll SCM (`H/2 * * * *`)**.
+- Xác minh Pipeline 6 stage chạy xanh tự động nhiều lần liên tiếp (`#6`, `#8`, `#9`, `#10`) và tổng hợp báo cáo nghiệm thu tại `docs/report/FINAL_ACCEPTANCE_REPORT.md` (tag phát hành **`v1.0.0`**).

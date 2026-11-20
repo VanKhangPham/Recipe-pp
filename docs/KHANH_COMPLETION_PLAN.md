@@ -113,7 +113,7 @@ Ngày cập nhật2026-11-06. Đây là kế hoạch công việc đề xuất t
 - [x] **Hạng mục 7 (Docker & Jenkins)**: Đã tạo `Jenkinsfile` 6 stages tự động hóa và `docker-compose.yml` điều phối cụm 3 container (`recipehub-api`, `recipehub-frontend`, `recipehub-gateway`).
 - [x] **Hạng mục 8 (AWS EC2 & Sẵn sàng triển khai)**: Đã biên soạn cẩm nang triển khai đầy đủ tại `docs/DEPLOYMENT_AWS_GUIDE.md`.
 - [x] **Hạng mục 9 (Backup, Restore & Rollback)**: Đã diễn tập sao lưu 32.8 MB trong 32s và phục hồi nguyên vẹn 100% trên container cách ly trong 3.95s.
-- [ ] **Hạng mục 10 (Nghiệm thu cuối cùng)**: Đang chuẩn bị bàn giao cho nhóm (Khang, Linh) và bảo vệ đồ án.
+- [x] **Hạng mục 10 (Nghiệm thu cuối cùng)**: Đã hoàn tất triển khai AWS EC2 + AWS RDS PostgreSQL 18 (15.20 GB, 1,091 công thức tiếng Việt 100% có ảnh thật), thiết lập lại giao diện trang chủ & navbar, xác minh Jenkins CI/CD tự động 6 stage trên VMware (Poll SCM + SSH Deploy + Auto-Rollback), bật Systemd & Nightly Backup có bảo vệ đĩa EC2, và xuất báo cáo nghiệm thu tại `docs/report/FINAL_ACCEPTANCE_REPORT.md` (tag `v1.0.0`).
 
 ## Thao tác kế tiếp của Khánh
 
