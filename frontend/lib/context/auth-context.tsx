@@ -43,7 +43,7 @@ export const DEMO_USERS: Record<"member" | "admin", User> = {
     email: "admin@recipehub.local",
     avatarText: "AD",
     role: "admin",
-    bio: "Bếp trưởng điều hành và quản trị viên kiểm duyệt chất lượng nội dung RecipeHub (Cloud Neon).",
+    bio: "Bếp trưởng điều hành và quản trị viên kiểm duyệt chất lượng nội dung RecipeHub.",
     location: "TP. Hồ Chí Minh",
     joinedDate: "Tháng 03/2023",
     stats: {

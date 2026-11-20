@@ -122,6 +122,18 @@ const CATEGORY_MAP: Record<
     image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80",
     dietTags: ["Thuần chay", "Thanh đạm"],
   },
+  "Món Âu & Quốc tế": {
+    code: "nuong",
+    name: "Món Âu & Quốc Tế",
+    image: "https://www.themealdb.com/images/media/meals/58oia61564916529.jpg",
+    dietTags: ["Giàu Protein"],
+  },
+  "Tráng miệng & Bánh": {
+    code: "trang-mieng",
+    name: "Tráng Miệng & Bánh",
+    image: "https://www.themealdb.com/images/media/meals/xvsurr1511719182.jpg",
+    dietTags: ["Thanh đạm"],
+  },
 };
 
 export function mapBackendToRecipe(
@@ -183,10 +195,10 @@ export function mapBackendToRecipe(
     title: summary.title,
     description: summary.description,
     author: {
-      id: summary.author?.id || "neon-author",
+      id: summary.author?.id || "recipehub-author",
       name: authorName,
       avatarText: initials || "RH",
-      title: "Cloud Neon RecipeHub",
+      title: "Đầu bếp RecipeHub",
     },
     region: "Nam",
     category: catInfo.code,
@@ -203,7 +215,7 @@ export function mapBackendToRecipe(
     bookmarksCount: 24,
     image: summary.coverImageUrl || detail?.images?.[0]?.url || catInfo.image,
     imageAlt: summary.title,
-    tags: [catRaw, "Món Việt", "Cloud Neon"],
+    tags: [catRaw, "Món ngon"],
     dietTags: catInfo.dietTags,
     ingredients,
     steps,
@@ -219,21 +231,32 @@ class RecipeService {
    */
   async fetchCloudNeonRecipes(signal?: AbortSignal): Promise<Recipe[]> {
     const summaries: BackendRecipeSummary[] = [];
-    let pageNumber = 1;
-    let totalPages = 1;
     const options = () => ({
       cache: "no-store" as const,
       signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000),
     });
-    do {
-      const page = await backendFetch<BackendPageResult<BackendRecipeSummary>>(
-        `/api/v1/recipes?page=${pageNumber}&pageSize=100`, options()
+    const firstPage = await backendFetch<BackendPageResult<BackendRecipeSummary>>(
+      `/api/v1/recipes?page=1&pageSize=100`, options()
+    );
+    if (!firstPage) throw new Error("Không tải được danh sách công thức. Vui lòng thử lại.");
+    summaries.push(...firstPage.items);
+
+    const totalPages = firstPage.totalPages || 1;
+    const remainingPages = Array.from({ length: Math.max(0, totalPages - 1) }, (_, idx) => idx + 2);
+    for (let i = 0; i < remainingPages.length; i += 4) {
+      const chunk = remainingPages.slice(i, i + 4);
+      const pages = await Promise.all(
+        chunk.map((pageNumber) =>
+          backendFetch<BackendPageResult<BackendRecipeSummary>>(
+            `/api/v1/recipes?page=${pageNumber}&pageSize=100`, options()
+          )
+        )
       );
-      if (!page) throw new Error("Không tải được danh sách công thức. Vui lòng thử lại.");
-      summaries.push(...page.items);
-      totalPages = page.totalPages;
-      pageNumber++;
-    } while (pageNumber <= totalPages);
+      for (const page of pages) {
+        if (!page) throw new Error("Không tải được danh sách công thức. Vui lòng thử lại.");
+        summaries.push(...page.items);
+      }
+    }
 
     const recipes: Recipe[] = [];
     // Older running API versions may not expose catalog ingredients until restarted.

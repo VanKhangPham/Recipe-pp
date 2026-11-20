@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
@@ -11,6 +12,14 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "www.themealdb.com",
+      },
+      {
+        protocol: "https",
+        hostname: "upload.wikimedia.org",
       },
     ],
   },
