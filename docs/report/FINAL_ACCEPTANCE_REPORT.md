@@ -1,6 +1,7 @@
 # Báo Cáo Nghiệm Thu Cuối Cùng — RecipeHub (`v1.0.0`)
 
 - **Ngày nghiệm thu:** `2026-11-20`
+- **URL triển khai chính thức (HTTPS):** `https://recipehub-bepviet.duckdns.org` *(Let's Encrypt TLS 1.2/1.3, HTTP/2, HSTS, tự chuyển hướng HTTP -> HTTPS & tự động gia hạn)*
 - **Repository:** `https://github.com/VanKhangPham/Recipe-pp` (nhánh `main`, tag `v1.0.0`)
 - **Phạm vi:** Fullstack Web Application (Next.js 16 + ASP.NET Core .NET 10 + Nginx 1.27), Cơ sở dữ liệu đám mây **AWS RDS PostgreSQL 18 (15.20 GB, 1,091 công thức tiếng Việt có ảnh thật)**, Triển khai **AWS EC2 (Sydney `ap-southeast-2`)**, và **Jenkins CI/CD tự động 6 stage trên VMware Ubuntu**.
 
@@ -101,7 +102,7 @@
 
 ---
 
-## 7. Giới Hạn Còn Lại & Hướng Mở Rộng Sản Phẩm
+## 7. Chứng Chỉ HTTPS & Quản Trị Chi Phí Cloud
 
-- **Domain & HTTPS (TLS):** Hiện hệ thống chạy qua IP công khai HTTP của EC2 (`SameAsRequest` cookies hoạt động bình thường cho kiểm thử). Khi gắn tên miền thực tế, chỉ cần trỏ DNS về AWS ALB (ACM TLS) hoặc gắn chứng chỉ Let's Encrypt lên Nginx cổng `443` — Backend đã sẵn sàng `ForwardedHeaders` nên Cookie sẽ tự nâng cấp lên `Secure`.
-- **Chi phí Cloud:** Sử dụng AWS EC2 `t3.small` và RDS `db.t4g.micro` trong hạn mức AWS Credit tại `ap-southeast-2`; có thể tạm Stop EC2/RDS khi không sử dụng và cập nhật lại `RECIPEHUB_EC2_HOST` trên Jenkins khi bật lại.
+- **Domain & HTTPS (Đã hoàn tất):** Đã gắn tên miền miễn phí **`https://recipehub-bepviet.duckdns.org`** (DuckDNS) kèm chứng chỉ **Let's Encrypt** tự động gia hạn hằng ngày (`03:00` sáng), bật **TLS 1.2/1.3, HTTP/2, HSTS**, tự chuyển hướng `HTTP -> HTTPS` (`301`) và truyền `X-Forwarded-Proto: https` để ASP.NET Core tự động gắn cờ **`Secure`** cho Cookie xác thực & CSRF.
+- **Chi phí Cloud:** Sử dụng AWS EC2 `t3.small` và RDS `db.t4g.micro` trong hạn mức AWS Credit tại `ap-southeast-2`; khi tạm dừng và khởi động lại EC2, chỉ cần cập nhật IP mới trên DuckDNS và biến `RECIPEHUB_EC2_HOST` trên Jenkins.
