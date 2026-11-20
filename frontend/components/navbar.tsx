@@ -6,8 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/context/auth-context";
-
-import { safeStorage } from "@/lib/services/storage";
 import { useFavorites } from "@/lib/context/favorites-context";
 
 export function Navbar() {
@@ -16,9 +14,6 @@ export function Navbar() {
   const { user, isLoggedIn, isRestoringSession, logout } = useAuth();
 
   const { favorites } = useFavorites();
-  const [bannerClosed, setBannerClosed] = React.useState(false);
-  const bannerHidden = React.useSyncExternalStore(subscribeToBanner, readBannerHidden, () => false);
-  const showBanner = !bannerClosed && !bannerHidden;
   const [searchQuery, setSearchQuery] = React.useState("");
   const [userMenuPath, setUserMenuPath] = React.useState<string | null>(null);
   const [mobileNavPath, setMobileNavPath] = React.useState<string | null>(null);
@@ -51,12 +46,6 @@ export function Navbar() {
       window.removeEventListener("keydown", onEscape);
     };
   }, [isUserMenuOpen]);
-
-  const dismissBanner = () => {
-    setBannerClosed(true);
-    safeStorage.setItem("recipehub_guest_banner_dismissed", "true");
-    window.dispatchEvent(new Event("recipehub-banner"));
-  };
 
   const navLinks = [
     { label: "Trang chủ", href: "/" },
@@ -154,7 +143,7 @@ export function Navbar() {
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <Link
-              href="/recipes/new"
+              href={!isRestoringSession && !isLoggedIn ? "/login?returnUrl=%2Frecipes%2Fnew" : "/recipes/new"}
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-on-primary hover:opacity-95 transition-all font-body-sm text-body-sm font-medium whitespace-nowrap shadow-xs"
             >
               <Icon name="add_circle" size={18} className="shrink-0" />
@@ -313,7 +302,7 @@ export function Navbar() {
               );
             })}
             <Link
-              href="/recipes/new"
+              href={!isRestoringSession && !isLoggedIn ? "/login?returnUrl=%2Frecipes%2Fnew" : "/recipes/new"}
               onClick={() => setIsMobileNavOpen(false)}
               className="sm:hidden px-3.5 py-2 rounded-xl bg-primary-fixed text-on-primary-fixed font-body-sm text-body-sm font-semibold"
             >
@@ -322,44 +311,6 @@ export function Navbar() {
           </div>
         </nav>
       )}
-
-      {/* Guest Data Transparency Banner Strip */}
-      {!isRestoringSession && !isLoggedIn && !["/login", "/register", "/favorites"].includes(pathname) && showBanner && (
-        <div className="w-full bg-surface-container-low py-2.5 px-gutter shadow-[0_1px_4px_rgba(0,0,0,0.02)]">
-          <div className="w-full flex items-center justify-between gap-space-md">
-            <div className="flex items-center gap-space-sm min-w-0">
-              <Icon name="cloud_off" size={20} className="text-secondary shrink-0" />
-              <p className="font-body-sm text-body-sm text-on-surface">
-                Bạn đang dùng chế độ khách trên trình duyệt này.{" "}
-                <Link href="/login" className="text-primary hover:underline font-semibold ml-1">
-                  Đăng nhập
-                </Link>{" "}
-                để dùng dữ liệu của tài khoản. Dữ liệu khách chưa được tự chuyển sang tài khoản.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={dismissBanner}
-              aria-label="Đóng thông báo"
-              className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors shrink-0 cursor-pointer"
-            >
-              <Icon name="close" size={18} />
-            </button>
-          </div>
-        </div>
-      )}
     </header>
   );
-}
-
-function readBannerHidden() {
-  return safeStorage.getItem("recipehub_guest_banner_dismissed") === "true";
-}
-function subscribeToBanner(listener: () => void) {
-  window.addEventListener("storage", listener);
-  window.addEventListener("recipehub-banner", listener);
-  return () => {
-    window.removeEventListener("storage", listener);
-    window.removeEventListener("recipehub-banner", listener);
-  };
 }

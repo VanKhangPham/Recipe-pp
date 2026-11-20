@@ -433,8 +433,8 @@ export function HomeMobile() {
                           {recipe.difficulty}
                         </span>
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-on-surface-variant">
-                          <Icon name="local_fire_department" size={14} className="text-primary" />
-                          {recipe.calories} kcal
+                          <Icon name="restaurant" size={14} className="text-primary" />
+                          {recipe.ingredients.length > 0 ? `${recipe.ingredients.length} nguyên liệu` : `${recipe.servings} khẩu phần`}
                         </span>
                       </div>
 

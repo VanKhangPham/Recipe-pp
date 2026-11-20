@@ -23,11 +23,44 @@ export default function NewRecipePage() {
   return <Suspense fallback={<p role="status">Đang tải…</p>}><RecipeEditorGate /></Suspense>;
 }
 function RecipeEditorGate() {
+  const router = useRouter();
   const { user, isRestoringSession } = useAuth();
   const id = useSearchParams().get("edit");
-  return <><Navbar /><main className="mx-auto max-w-5xl space-y-5 p-6">
-    {isRestoringSession ? <p role="status">Đang kiểm tra đăng nhập…</p> : !user ? <Link href="/login" className="underline">Đăng nhập để đăng công thức</Link> : <RecipeEditor key={user.id + ":" + (id ?? "new")} id={id} />}
-  </main><Footer /></>;
+  const returnUrl = id ? `/recipes/new?edit=${encodeURIComponent(id)}` : "/recipes/new";
+  const loginHref = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+
+  useEffect(() => {
+    if (!isRestoringSession && !user) {
+      router.replace(loginHref);
+    }
+  }, [isRestoringSession, user, router, loginHref]);
+
+  return (
+    <div className="min-h-screen flex flex-col bg-surface">
+      <Navbar />
+      <main className="mx-auto w-full max-w-5xl flex-1 space-y-5 p-6">
+        {isRestoringSession ? (
+          <p role="status" className="text-center py-12 text-on-surface-variant">Đang kiểm tra đăng nhập…</p>
+        ) : !user ? (
+          <div className="mx-auto my-12 max-w-md rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-8 text-center shadow-sm space-y-4">
+            <h1 className="text-xl font-bold text-on-surface">Vui lòng đăng nhập</h1>
+            <p className="text-sm text-on-surface-variant">
+              Đang chuyển hướng tới trang đăng nhập để bạn đăng công thức…
+            </p>
+            <Link
+              href={loginHref}
+              className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-xs hover:opacity-95 transition-opacity"
+            >
+              Đăng nhập ngay
+            </Link>
+          </div>
+        ) : (
+          <RecipeEditor key={user.id + ":" + (id ?? "new")} id={id} />
+        )}
+      </main>
+      <Footer />
+    </div>
+  );
 }
 function RecipeEditor({ id }: { id: string | null }) {
   const router = useRouter();
